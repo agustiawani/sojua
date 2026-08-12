@@ -1,5 +1,5 @@
 // pages/index.js
-// Full version dengan Auto Generate + pilihan server, Converter, Checker
+// Full version dengan Auto Generate (pilihan server), Converter, Checker
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
@@ -212,7 +212,7 @@ export default function Home() {
                 disabled={autoGenLoading}
                 className="server-select"
               >
-                <option value="server1">Server 1 (Online - Unlimited)</option>
+                <option value="server1">Server 1 (Online + TV)</option>
                 <option value="server2">Server 2 (Lokal)</option>
               </select>
             </div>
@@ -236,6 +236,9 @@ export default function Home() {
                     Sumber: {autoGenResult.source || 'Tidak diketahui'}
                     {autoGenResult.fallback && ' (Fallback)'}
                   </span>
+                  {autoGenResult.reason && (
+                    <div className="result-reason">⚠️ {autoGenResult.reason}</div>
+                  )}
                 </div>
 
                 <div className="result-item">
@@ -255,6 +258,13 @@ export default function Home() {
                   <span className="result-value">{autoGenResult.expiry}</span>
                 </div>
 
+                <div className="result-item">
+                  <span className="result-label">📱 DEVICE</span>
+                  <span className="result-value" style={{ textTransform: 'capitalize' }}>
+                    {autoGenResult.device || 'Random'}
+                  </span>
+                </div>
+
                 {autoGenResult.profile && (
                   <>
                     <div className="result-divider"></div>
@@ -271,6 +281,24 @@ export default function Home() {
                         <span className="profile-label">📧 Email</span>
                         <span className="profile-value">{autoGenResult.profile.email || 'Tidak diketahui'}</span>
                       </div>
+                      {autoGenResult.profile.profileName && (
+                        <div className="profile-item">
+                          <span className="profile-label">👤 Profil</span>
+                          <span className="profile-value">{autoGenResult.profile.profileName}</span>
+                        </div>
+                      )}
+                      {autoGenResult.profile.lastActive && (
+                        <div className="profile-item">
+                          <span className="profile-label">🕐 Aktif Terakhir</span>
+                          <span className="profile-value">{autoGenResult.profile.lastActive}</span>
+                        </div>
+                      )}
+                      {autoGenResult.profile.billingDate && (
+                        <div className="profile-item">
+                          <span className="profile-label">📅 Tagihan</span>
+                          <span className="profile-value">{autoGenResult.profile.billingDate}</span>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -649,6 +677,16 @@ export default function Home() {
           color: #6b7280;
           margin-left: 12px;
         }
+        .result-reason {
+          background: rgba(245, 158, 11, 0.1);
+          padding: 8px 12px;
+          border-radius: 8px;
+          border-left: 3px solid #f59e0b;
+          margin-top: 8px;
+          font-size: 13px;
+          color: #f59e0b;
+          width: 100%;
+        }
 
         /* ===== AUTO GENERATE ===== */
         .auto-generate-area {
@@ -810,8 +848,9 @@ export default function Home() {
         .result-header {
           margin-bottom: 16px;
           display: flex;
-          align-items: center;
           flex-wrap: wrap;
+          align-items: center;
+          gap: 4px;
         }
         .result-badge {
           font-size: 18px;
