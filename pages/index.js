@@ -15,15 +15,16 @@ export default function Home() {
   const [savedCookies, setSavedCookies] = useState([]);
   const [newCookieName, setNewCookieName] = useState('');
 
-  // ===== STATE UNTUK CHECKER (dengan expiry) =====
-  const [checkResults, setCheckResults] = useState({}); // { cookieId: { status: 'valid'|'invalid'|'checking', expiry: '...' } }
+  // ===== STATE UNTUK CHECKER =====
+  const [checkResults, setCheckResults] = useState({});
 
-  // ===== STATE UNTUK AUTO GENERATE =====
+  // ===== STATE UNTUK AUTO GENERATE (dengan pilihan server) =====
+  const [selectedServer, setSelectedServer] = useState('external1');
   const [autoGenLoading, setAutoGenLoading] = useState(false);
   const [autoGenResult, setAutoGenResult] = useState(null);
   const [autoGenError, setAutoGenError] = useState('');
 
-  // ===== LOAD DARI LOCALSTORAGE =====
+  // ===== LOAD DARI LOCALSTORAGE (Converter) =====
   useEffect(() => {
     const stored = localStorage.getItem('netflix_cookies');
     if (stored) {
@@ -104,7 +105,7 @@ export default function Home() {
     }
   };
 
-  // ===== CHECKER (dengan expiry) =====
+  // ===== CHECKER =====
   const handleCheckCookie = async (cookieStr, cookieId) => {
     setCheckResults(prev => ({ ...prev, [cookieId]: { status: 'checking', expiry: null } }));
     const result = await callConvertApi(cookieStr);
@@ -127,13 +128,13 @@ export default function Home() {
     }
   };
 
-  // ===== AUTO GENERATE =====
+  // ===== AUTO GENERATE (dengan pilihan server) =====
   const handleAutoGenerate = async () => {
     setAutoGenLoading(true);
     setAutoGenError('');
     setAutoGenResult(null);
     try {
-      const res = await fetch('/api/auto-generate');
+      const res = await fetch(`/api/auto-generate?server=${selectedServer}`);
       const data = await res.json();
       if (res.ok && data.success) {
         setAutoGenResult(data);
@@ -163,7 +164,6 @@ export default function Home() {
       </Head>
 
       <div className="container">
-        {/* HEADER */}
         <header>
           <div className="logo">
             <span className="logo-icon">▶</span>
@@ -186,14 +186,48 @@ export default function Home() {
         </div>
 
         {/* ============================================ */}
-        {/* TAB: AUTO GENERATE (tetap sama) */}
+        {/* TAB: AUTO GENERATE (dengan pilihan server) */}
         {/* ============================================ */}
         {activeTab === 'auto' && (
           <div className="tab-content">
             <div className="section-label">⚡ GENERATE LINK INSTAN</div>
             <p className="hint">
-              Klik tombol di bawah untuk mendapatkan satu link NFToken dari salah satu akun yang tersedia.
+              Pilih server sumber, lalu klik tombol di bawah untuk mendapatkan satu link NFToken.
             </p>
+
+            {/* Pilihan Server */}
+            <div className="server-selector">
+              <label className="server-option">
+                <input
+                  type="radio"
+                  name="server"
+                  value="external1"
+                  checked={selectedServer === 'external1'}
+                  onChange={() => setSelectedServer('external1')}
+                />
+                <span className="server-label">🌐 Server 1 (Online)</span>
+              </label>
+              <label className="server-option">
+                <input
+                  type="radio"
+                  name="server"
+                  value="external2"
+                  checked={selectedServer === 'external2'}
+                  onChange={() => setSelectedServer('external2')}
+                />
+                <span className="server-label">📺 Server 2 (Online + TV)</span>
+              </label>
+              <label className="server-option">
+                <input
+                  type="radio"
+                  name="server"
+                  value="local"
+                  checked={selectedServer === 'local'}
+                  onChange={() => setSelectedServer('local')}
+                />
+                <span className="server-label">💾 Server 3 (Lokal)</span>
+              </label>
+            </div>
 
             <div className="auto-generate-area">
               <button
@@ -256,7 +290,7 @@ export default function Home() {
         )}
 
         {/* ============================================ */}
-        {/* TAB: CONVERTER (dengan perbaikan tampilan) */}
+        {/* TAB: CONVERTER (sama) */}
         {/* ============================================ */}
         {activeTab === 'converter' && (
           <div className="tab-content">
@@ -315,7 +349,6 @@ export default function Home() {
 
             {error && <div className="error-box"><strong>❌ Error:</strong> {error}</div>}
 
-            {/* Hasil Converter dengan tampilan lebih jelas */}
             {result && (
               <div className="result-box converter-result">
                 <div className="result-header">
@@ -374,7 +407,7 @@ export default function Home() {
         )}
 
         {/* ============================================ */}
-        {/* TAB: CHECKER (dengan expiry) */}
+        {/* TAB: CHECKER (sama) */}
         {/* ============================================ */}
         {activeTab === 'checker' && (
           <div className="tab-content">
@@ -435,8 +468,9 @@ export default function Home() {
         </footer>
       </div>
 
-      {/* ===== STYLES (diperbarui untuk kontras dan kerapian) ===== */}
+      {/* ===== STYLES ===== */}
       <style jsx>{`
+        /* === Global === */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
           background: #0a0a0f;
@@ -519,13 +553,43 @@ export default function Home() {
           padding: 20px 0;
         }
 
+        /* ===== SERVER SELECTOR ===== */
+        .server-selector {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          background: rgba(255,255,255,0.03);
+          padding: 14px 16px;
+          border-radius: 14px;
+          border: 1px solid rgba(255,255,255,0.04);
+        }
+        .server-option {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+          font-size: 14px;
+          color: #eaeef2;
+          flex: 1;
+          min-width: 120px;
+        }
+        .server-option input[type="radio"] {
+          accent-color: #e50914;
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
+        }
+        .server-label {
+          font-weight: 500;
+        }
+
         /* ===== AUTO GENERATE ===== */
         .auto-generate-area {
           display: flex;
           flex-direction: column;
           gap: 12px;
           align-items: center;
-          padding: 20px 0;
+          padding: 10px 0;
         }
         .btn-generate-auto {
           padding: 16px 48px;
@@ -629,7 +693,7 @@ export default function Home() {
           transform: none; box-shadow: none;
         }
 
-        /* ===== RESULT BOX (Converter & Auto) ===== */
+        /* ===== RESULT BOX ===== */
         .result-box {
           padding: 20px 22px;
           background: rgba(16,185,129,0.06);
@@ -804,7 +868,7 @@ export default function Home() {
           background: rgba(229,9,20,0.1);
         }
 
-        /* ===== SAVED SECTION (Converter) ===== */
+        /* ===== SAVED SECTION ===== */
         .saved-section {
           background: rgba(255,255,255,0.03);
           border-radius: 12px; padding: 12px 14px;
@@ -862,6 +926,8 @@ export default function Home() {
           .cookie-card { flex-direction: column; align-items: flex-start; }
           .cookie-card-status { min-width: auto; text-align: left; }
           .btn-generate-auto { width: 100%; padding: 14px 24px; font-size: 16px; }
+          .server-selector { flex-direction: column; gap: 8px; }
+          .server-option { min-width: auto; }
         }
         @media (max-width: 400px) {
           .container { padding: 14px 10px; }
@@ -873,6 +939,3 @@ export default function Home() {
     </>
   );
 }
-
-// ===== KOMPONEN RESULT DISPLAY (tidak digunakan lagi karena sudah inline di Converter) =====
-// (Saya hapus karena hasil Converter sekarang sudah di-render langsung di dalam tab)
