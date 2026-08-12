@@ -1,54 +1,48 @@
+// pages/api/auto-generate.js
+// Versi terbaru: Scrape dari nftools.aroshi.my.id + Fallback ke cookies.json lokal
+
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 
-export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+// =====================================================
+// 1. KONSTANTA SUMBER EKSTERNAL
+// =====================================================
+const EXTERNAL_API = 'http://nftools.aroshi.my.id';
+const DEFAULT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const TIMEOUT_MS = 10000; // 10 detik (Vercel Hobby limit 10s)
+
+// =====================================================
+// 2. FUNGSI PENDUKUNG
+// =====================================================
+function solvePow(challenge, prefix = '0000', maxAttempts = 500000) {
+  for (let n = 0; n < maxAttempts; n++) {
+    const hash = crypto.createHash('sha256').update(challenge + n).digest('hex');
+    if (hash.startsWith(prefix)) {
+      return `${challenge}:${n}`;
+    }
   }
+  return null;
+}
 
+async function fetchWithTimeout(url, options = {}, timeout = TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
   try {
-    // 1. Baca file cookies.json
-    const filePath = path.join(process.cwd(), 'data', 'cookies.json');
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
-    const cookies = JSON.parse(fileContent);
-
-    if (!Array.isArray(cookies) || cookies.length === 0) {
-      return res.status(404).json({ error: 'Tidak ada cookie tersedia.' });
-    }
-
-    // 2. Acak urutan cookie
-    const shuffled = [...cookies].sort(() => Math.random() - 0.5);
-
-    // 3. Coba satu per satu hingga berhasil
-    for (const cookieStr of shuffled) {
-      try {
-        // Panggil API konversi internal (fungsi yang sama dengan /api/convert)
-        const result = await convertCookie(cookieStr);
-        if (result.success) {
-          // Jika berhasil, kirim hasil (tanpa cookie)
-          return res.status(200).json({
-            success: true,
-            token: result.data.token,
-            url: result.data.url,
-            expiry: result.data.expiryHuman,
-            profile: result.data.profile,
-          });
-        }
-      } catch (_) {
-        // Gagal, lanjut ke cookie berikutnya
-        continue;
-      }
-    }
-
-    // Jika semua cookie gagal
-    return res.status(404).json({ error: 'Tidak ada cookie yang aktif/valid.' });
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+    return response;
   } catch (error) {
-    return res.status(500).json({ error: 'Gagal membaca file cookies.json', detail: error.message });
+    clearTimeout(timeoutId);
+    throw error;
   }
 }
 
-// ===== Fungsi konversi (copied dari /api/convert) =====
-async function convertCookie(cookieStr) {
+// =====================================================
+// 3. FUNGSI KONVERSI COOKIE LOKAL (FALLBACK)
+//    (di-copy dari /api/convert.js)
+// =====================================================
+async function convertLocalCookie(cookieStr) {
   const API_URL = 'https://ios.prod.ftl.netflix.com/iosui/user/15.48';
   const QUERY_PARAMS = {
     appVersion: '15.48.1',
@@ -136,7 +130,7 @@ async function convertCookie(cookieStr) {
     }
   }
 
-  // Ambil info profil (opsional)
+  // Ambil info profil
   let profileInfo = null;
   try {
     const profileUrl = new URL('https://ios.prod.ftl.netflix.com/iosui/profiles/current');
@@ -172,4 +166,159 @@ async function convertCookie(cookieStr) {
       profile: profileInfo,
     },
   };
+}
+
+// =====================================================
+// 4. FUNGSI UTAMA HANDLER
+// =====================================================
+export default async function handler(req, res) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // --------------------------------
+  // PRIORITAS 1: Scrape dari Sumber Eksternal (nftools.aroshi.my.id)
+  // --------------------------------
+  try {
+    console.log('[Auto-Generate] Mencoba sumber eksternal...');
+
+    // 4a. Buat session
+    const sessionRes = await fetchWithTimeout(
+      `${EXTERNAL_API}/api/session`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': DEFAULT_UA,
+        },
+        body: JSON.stringify({}),
+      },
+      8000
+    );
+
+    if (!sessionRes.ok) {
+      throw new Error(`Session HTTP ${sessionRes.status}`);
+    }
+
+    const sessionData = await sessionRes.json();
+    if (!sessionData.success || !sessionData.token) {
+      throw new Error('Session token tidak valid');
+    }
+
+    const sessionToken = sessionData.token;
+    const plans = ['premium', 'standard', 'basic'];
+    const plan = plans[Math.floor(Math.random() * plans.length)];
+
+    console.log(`[Auto-Generate] Session OK, plan: ${plan}`);
+
+    // 4b. Generate token (dengan kemungkinan PoW)
+    let genRes = await fetchWithTimeout(
+      `${EXTERNAL_API}/api/random`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': DEFAULT_UA,
+          'X-NFToken-Session': sessionToken,
+        },
+        body: JSON.stringify({ plan }),
+      },
+      8000
+    );
+
+    let genData = await genRes.json();
+
+    // 4c. Jika diminta PoW, selesaikan
+    if (genRes.status === 403 && genData.powChallenge) {
+      console.log('[Auto-Generate] PoW challenge detected, solving...');
+      const proof = solvePow(genData.powChallenge);
+      if (!proof) {
+        throw new Error('Gagal menyelesaikan PoW');
+      }
+
+      genRes = await fetchWithTimeout(
+        `${EXTERNAL_API}/api/random`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': DEFAULT_UA,
+            'X-NFToken-Session': sessionToken,
+            'X-PoW-Proof': proof,
+          },
+          body: JSON.stringify({ plan }),
+        },
+        8000
+      );
+      genData = await genRes.json();
+    }
+
+    // 4d. Jika berhasil, kembalikan hasil
+    if (genRes.ok && genData.success && genData.url) {
+      console.log('[Auto-Generate] Sukses dari eksternal!');
+      return res.status(200).json({
+        success: true,
+        url: genData.url,
+        expiry: genData.expires || 'Tidak diketahui',
+        profile: {
+          country: genData.country || 'Tidak diketahui',
+          currency: genData.currency || 'Tidak diketahui',
+          plan: genData.plan || genData.quality || 'Tidak diketahui',
+          email: genData.email || 'Tidak diketahui',
+        },
+      });
+    } else {
+      throw new Error(genData.error || 'Gagal generate dari eksternal');
+    }
+  } catch (error) {
+    console.log(`[Auto-Generate] Sumber eksternal gagal: ${error.message}`);
+
+    // --------------------------------
+    // PRIORITAS 2: Fallback ke cookies.json lokal
+    // --------------------------------
+    try {
+      console.log('[Auto-Generate] Mencoba fallback ke cookies.json lokal...');
+      const filePath = path.join(process.cwd(), 'data', 'cookies.json');
+      
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'File cookies.json tidak ditemukan.' });
+      }
+
+      const fileContent = fs.readFileSync(filePath, 'utf-8');
+      const cookies = JSON.parse(fileContent);
+
+      if (!Array.isArray(cookies) || cookies.length === 0) {
+        return res.status(404).json({ error: 'Tidak ada cookie di cookies.json.' });
+      }
+
+      // Acak urutan untuk mencoba
+      const shuffled = [...cookies].sort(() => Math.random() - 0.5);
+
+      for (const cookieStr of shuffled) {
+        try {
+          const result = await convertLocalCookie(cookieStr);
+          if (result.success) {
+            console.log('[Auto-Generate] Sukses dari fallback lokal!');
+            return res.status(200).json({
+              success: true,
+              url: result.data.url,
+              expiry: result.data.expiryHuman,
+              profile: result.data.profile,
+            });
+          }
+        } catch (_) {
+          // Coba cookie berikutnya
+          continue;
+        }
+      }
+
+      return res.status(404).json({ error: 'Semua cookie lokal tidak aktif.' });
+    } catch (localErr) {
+      console.log(`[Auto-Generate] Fallback lokal gagal: ${localErr.message}`);
+      return res.status(500).json({
+        error: 'Sumber eksternal & lokal gagal.',
+        detail: localErr.message,
+      });
+    }
+  }
 }
