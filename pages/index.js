@@ -1,3 +1,6 @@
+// pages/index.js
+// Full version dengan Auto Generate + pilihan server, Converter, Checker
+
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 
@@ -18,13 +21,13 @@ export default function Home() {
   // ===== STATE UNTUK CHECKER =====
   const [checkResults, setCheckResults] = useState({});
 
-  // ===== STATE UNTUK AUTO GENERATE (dengan pilihan server) =====
-  const [selectedServer, setSelectedServer] = useState('external1');
+  // ===== STATE UNTUK AUTO GENERATE =====
   const [autoGenLoading, setAutoGenLoading] = useState(false);
   const [autoGenResult, setAutoGenResult] = useState(null);
   const [autoGenError, setAutoGenError] = useState('');
+  const [selectedServer, setSelectedServer] = useState('server1');
 
-  // ===== LOAD DARI LOCALSTORAGE (Converter) =====
+  // ===== LOAD DARI LOCALSTORAGE =====
   useEffect(() => {
     const stored = localStorage.getItem('netflix_cookies');
     if (stored) {
@@ -49,7 +52,7 @@ export default function Home() {
       alert('Cookie tidak valid. Pastikan berisi NetflixId.');
       return;
     }
-    if (savedCookies.some(c => c.name.toLowerCase() === newCookieName.trim().toLowerCase())) {
+    if (savedCookies.some((c) => c.name.toLowerCase() === newCookieName.trim().toLowerCase())) {
       alert(`Nama "${newCookieName}" sudah digunakan.`);
       return;
     }
@@ -65,7 +68,7 @@ export default function Home() {
 
   const handleDeleteCookie = (id) => {
     if (confirm('Hapus cookie ini?')) {
-      const newList = savedCookies.filter(c => c.id !== id);
+      const newList = savedCookies.filter((c) => c.id !== id);
       updateSavedCookies(newList);
     }
   };
@@ -107,34 +110,38 @@ export default function Home() {
 
   // ===== CHECKER =====
   const handleCheckCookie = async (cookieStr, cookieId) => {
-    setCheckResults(prev => ({ ...prev, [cookieId]: { status: 'checking', expiry: null } }));
+    setCheckResults((prev) => ({ ...prev, [cookieId]: { status: 'checking', expiry: null } }));
     const result = await callConvertApi(cookieStr);
     if (result.success) {
-      setCheckResults(prev => ({
+      setCheckResults((prev) => ({
         ...prev,
         [cookieId]: {
           status: 'valid',
           expiry: result.data.expiryHuman || 'Tidak diketahui',
-        }
+        },
       }));
     } else {
-      setCheckResults(prev => ({
+      setCheckResults((prev) => ({
         ...prev,
         [cookieId]: {
           status: 'invalid',
           expiry: null,
-        }
+        },
       }));
     }
   };
 
-  // ===== AUTO GENERATE (dengan pilihan server) =====
+  // ===== AUTO GENERATE =====
   const handleAutoGenerate = async () => {
     setAutoGenLoading(true);
     setAutoGenError('');
     setAutoGenResult(null);
     try {
-      const res = await fetch(`/api/auto-generate?server=${selectedServer}`);
+      const res = await fetch('/api/auto-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ server: selectedServer }),
+      });
       const data = await res.json();
       if (res.ok && data.success) {
         setAutoGenResult(data);
@@ -164,6 +171,7 @@ export default function Home() {
       </Head>
 
       <div className="container">
+        {/* HEADER */}
         <header>
           <div className="logo">
             <span className="logo-icon">▶</span>
@@ -192,41 +200,21 @@ export default function Home() {
           <div className="tab-content">
             <div className="section-label">⚡ GENERATE LINK INSTAN</div>
             <p className="hint">
-              Pilih server sumber, lalu klik tombol di bawah untuk mendapatkan satu link NFToken.
+              Pilih server sumber data, lalu klik tombol di bawah untuk mendapatkan link NFToken.
             </p>
 
-            {/* Pilihan Server */}
             <div className="server-selector">
-              <label className="server-option">
-                <input
-                  type="radio"
-                  name="server"
-                  value="external1"
-                  checked={selectedServer === 'external1'}
-                  onChange={() => setSelectedServer('external1')}
-                />
-                <span className="server-label">🌐 Server 1 (Online)</span>
-              </label>
-              <label className="server-option">
-                <input
-                  type="radio"
-                  name="server"
-                  value="external2"
-                  checked={selectedServer === 'external2'}
-                  onChange={() => setSelectedServer('external2')}
-                />
-                <span className="server-label">📺 Server 2 (Online + TV)</span>
-              </label>
-              <label className="server-option">
-                <input
-                  type="radio"
-                  name="server"
-                  value="local"
-                  checked={selectedServer === 'local'}
-                  onChange={() => setSelectedServer('local')}
-                />
-                <span className="server-label">💾 Server 3 (Lokal)</span>
-              </label>
+              <label htmlFor="serverSelect">Pilih Server:</label>
+              <select
+                id="serverSelect"
+                value={selectedServer}
+                onChange={(e) => setSelectedServer(e.target.value)}
+                disabled={autoGenLoading}
+                className="server-select"
+              >
+                <option value="server1">Server 1 (Online - Unlimited)</option>
+                <option value="server2">Server 2 (Lokal)</option>
+              </select>
             </div>
 
             <div className="auto-generate-area">
@@ -244,6 +232,10 @@ export default function Home() {
               <div className="result-box">
                 <div className="result-header">
                   <span className="result-badge">✅ SUKSES!</span>
+                  <span className="result-source">
+                    Sumber: {autoGenResult.source || 'Tidak diketahui'}
+                    {autoGenResult.fallback && ' (Fallback)'}
+                  </span>
                 </div>
 
                 <div className="result-item">
@@ -252,7 +244,9 @@ export default function Home() {
                     <a href={autoGenResult.url} target="_blank" rel="noopener noreferrer" className="result-link">
                       {autoGenResult.url}
                     </a>
-                    <button onClick={() => copyToClipboard(autoGenResult.url, 'Link')} className="copy-btn">📋</button>
+                    <button onClick={() => copyToClipboard(autoGenResult.url, 'Link')} className="copy-btn">
+                      📋
+                    </button>
                   </div>
                 </div>
 
@@ -267,19 +261,15 @@ export default function Home() {
                     <div className="profile-grid">
                       <div className="profile-item">
                         <span className="profile-label">🌍 Negara</span>
-                        <span className="profile-value">{autoGenResult.profile.country}</span>
-                      </div>
-                      <div className="profile-item">
-                        <span className="profile-label">💰 Mata Uang</span>
-                        <span className="profile-value">{autoGenResult.profile.currency}</span>
+                        <span className="profile-value">{autoGenResult.profile.country || 'Tidak diketahui'}</span>
                       </div>
                       <div className="profile-item">
                         <span className="profile-label">📦 Paket</span>
-                        <span className="profile-value">{autoGenResult.profile.plan}</span>
+                        <span className="profile-value">{autoGenResult.profile.plan || 'Tidak diketahui'}</span>
                       </div>
                       <div className="profile-item">
                         <span className="profile-label">📧 Email</span>
-                        <span className="profile-value">{autoGenResult.profile.email}</span>
+                        <span className="profile-value">{autoGenResult.profile.email || 'Tidak diketahui'}</span>
                       </div>
                     </div>
                   </>
@@ -290,7 +280,7 @@ export default function Home() {
         )}
 
         {/* ============================================ */}
-        {/* TAB: CONVERTER (sama) */}
+        {/* TAB: CONVERTER */}
         {/* ============================================ */}
         {activeTab === 'converter' && (
           <div className="tab-content">
@@ -305,8 +295,12 @@ export default function Home() {
                       <span className="saved-name" onClick={() => setCookieInput(item.cookie)}>
                         {item.name}
                       </span>
-                      <button onClick={() => setCookieInput(item.cookie)} className="btn-use" title="Gunakan">📋</button>
-                      <button onClick={() => handleDeleteCookie(item.id)} className="btn-delete" title="Hapus">✕</button>
+                      <button onClick={() => setCookieInput(item.cookie)} className="btn-use" title="Gunakan">
+                        📋
+                      </button>
+                      <button onClick={() => handleDeleteCookie(item.id)} className="btn-delete" title="Hapus">
+                        ✕
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -347,7 +341,11 @@ export default function Home() {
               </div>
             </form>
 
-            {error && <div className="error-box"><strong>❌ Error:</strong> {error}</div>}
+            {error && (
+              <div className="error-box">
+                <strong>❌ Error:</strong> {error}
+              </div>
+            )}
 
             {result && (
               <div className="result-box converter-result">
@@ -361,7 +359,9 @@ export default function Home() {
                     <a href={result.url} target="_blank" rel="noopener noreferrer" className="result-link">
                       {result.url}
                     </a>
-                    <button onClick={() => copyToClipboard(result.url, 'Link')} className="copy-btn">📋</button>
+                    <button onClick={() => copyToClipboard(result.url, 'Link')} className="copy-btn">
+                      📋
+                    </button>
                   </div>
                 </div>
 
@@ -374,7 +374,9 @@ export default function Home() {
                   <span className="result-label">🔑 TOKEN</span>
                   <div className="result-value-wrap">
                     <code className="result-token">{result.token}</code>
-                    <button onClick={() => copyToClipboard(result.token, 'Token')} className="copy-btn">📋</button>
+                    <button onClick={() => copyToClipboard(result.token, 'Token')} className="copy-btn">
+                      📋
+                    </button>
                   </div>
                 </div>
 
@@ -407,7 +409,7 @@ export default function Home() {
         )}
 
         {/* ============================================ */}
-        {/* TAB: CHECKER (sama) */}
+        {/* TAB: CHECKER */}
         {/* ============================================ */}
         {activeTab === 'checker' && (
           <div className="tab-content">
@@ -440,11 +442,13 @@ export default function Home() {
                     <div key={item.id} className="cookie-card checker-card">
                       <div className="cookie-card-info">
                         <div className="cookie-card-name">{item.name}</div>
-                        <div className="cookie-card-expiry" style={{ color: '#6b7280', fontSize: '12px' }}>
+                        <div className="cookie-card-expiry">
                           {check && check.status === 'valid' ? `Exp: ${expiryLabel}` : expiryLabel}
                         </div>
                       </div>
-                      <div className="cookie-card-status" style={{ color: statusColor }}>{statusLabel}</div>
+                      <div className="cookie-card-status" style={{ color: statusColor }}>
+                        {statusLabel}
+                      </div>
                       <div className="cookie-card-actions">
                         <button
                           className="btn-check"
@@ -453,7 +457,9 @@ export default function Home() {
                         >
                           {check?.status === 'checking' ? '⏳' : '🔍 Check'}
                         </button>
-                        <button className="btn-delete-sm" onClick={() => handleDeleteCookie(item.id)}>✕</button>
+                        <button className="btn-delete-sm" onClick={() => handleDeleteCookie(item.id)}>
+                          ✕
+                        </button>
                       </div>
                     </div>
                   );
@@ -470,8 +476,11 @@ export default function Home() {
 
       {/* ===== STYLES ===== */}
       <style jsx>{`
-        /* === Global === */
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }
         body {
           background: #0a0a0f;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -499,88 +508,146 @@ export default function Home() {
           align-items: center;
           margin-bottom: 24px;
           padding-bottom: 16px;
-          border-bottom: 1px solid rgba(255,255,255,0.04);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.04);
         }
-        .logo { display: flex; align-items: center; gap: 10px; }
-        .logo-icon { font-size: 22px; color: #e50914; font-weight: 700; }
+        .logo {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .logo-icon {
+          font-size: 22px;
+          color: #e50914;
+          font-weight: 700;
+        }
         .logo-text {
-          font-size: 20px; font-weight: 700; letter-spacing: 1px;
+          font-size: 20px;
+          font-weight: 700;
+          letter-spacing: 1px;
           background: linear-gradient(135deg, #e50914, #f5a623);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
         }
         .tagline {
-          font-size: 11px; font-weight: 600; color: #6b7280;
-          letter-spacing: 2px; text-transform: uppercase;
-          background: rgba(255,255,255,0.04);
-          padding: 4px 12px; border-radius: 20px;
-          border: 1px solid rgba(255,255,255,0.04);
+          font-size: 11px;
+          font-weight: 600;
+          color: #6b7280;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          background: rgba(255, 255, 255, 0.04);
+          padding: 4px 12px;
+          border-radius: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.04);
         }
         .tabs {
-          display: flex; gap: 4px;
-          background: rgba(255,255,255,0.04);
-          border-radius: 14px; padding: 4px;
+          display: flex;
+          gap: 4px;
+          background: rgba(255, 255, 255, 0.04);
+          border-radius: 14px;
+          padding: 4px;
           margin-bottom: 28px;
-          border: 1px solid rgba(255,255,255,0.04);
+          border: 1px solid rgba(255, 255, 255, 0.04);
         }
         .tab {
-          flex: 1; padding: 10px 12px; border: none;
-          border-radius: 11px; background: transparent;
-          color: #6b7280; font-size: 12px; font-weight: 600;
-          letter-spacing: 0.5px; cursor: pointer;
-          transition: all 0.25s ease; text-transform: uppercase;
+          flex: 1;
+          padding: 10px 12px;
+          border: none;
+          border-radius: 11px;
+          background: transparent;
+          color: #6b7280;
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+          cursor: pointer;
+          transition: all 0.25s ease;
+          text-transform: uppercase;
         }
-        .tab:hover { color: #eaeef2; }
+        .tab:hover {
+          color: #eaeef2;
+        }
         .tab.active {
-          background: #e50914; color: #fff;
-          box-shadow: 0 4px 16px rgba(229,9,20,0.3);
+          background: #e50914;
+          color: #fff;
+          box-shadow: 0 4px 16px rgba(229, 9, 20, 0.3);
         }
-        .tab-content { display: flex; flex-direction: column; gap: 16px; }
+        .tab-content {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
         .section-label {
-          font-size: 12px; font-weight: 700; color: #6b7280;
-          letter-spacing: 1.5px; text-transform: uppercase;
+          font-size: 12px;
+          font-weight: 700;
+          color: #6b7280;
+          letter-spacing: 1.5px;
+          text-transform: uppercase;
         }
         .hint {
-          font-size: 13px; color: #6b7280; margin-top: -6px;
+          font-size: 13px;
+          color: #6b7280;
+          margin-top: -6px;
         }
         .char-counter {
-          font-size: 12px; color: #4b5563; text-align: right;
-          margin-top: -8px; font-family: monospace;
+          font-size: 12px;
+          color: #4b5563;
+          text-align: right;
+          margin-top: -8px;
+          font-family: monospace;
         }
         .empty-msg {
-          color: #6b7280; font-size: 14px; text-align: center;
+          color: #6b7280;
+          font-size: 14px;
+          text-align: center;
           padding: 20px 0;
         }
 
         /* ===== SERVER SELECTOR ===== */
         .server-selector {
           display: flex;
-          flex-wrap: wrap;
-          gap: 12px;
-          background: rgba(255,255,255,0.03);
-          padding: 14px 16px;
-          border-radius: 14px;
-          border: 1px solid rgba(255,255,255,0.04);
-        }
-        .server-option {
-          display: flex;
           align-items: center;
-          gap: 8px;
-          cursor: pointer;
-          font-size: 14px;
-          color: #eaeef2;
-          flex: 1;
-          min-width: 120px;
+          gap: 12px;
+          background: rgba(255, 255, 255, 0.03);
+          padding: 12px 16px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.04);
+          flex-wrap: wrap;
         }
-        .server-option input[type="radio"] {
-          accent-color: #e50914;
-          width: 16px;
-          height: 16px;
-          cursor: pointer;
-        }
-        .server-label {
+        .server-selector label {
+          font-size: 13px;
           font-weight: 500;
+          color: #9ca3af;
+        }
+        .server-select {
+          padding: 8px 14px;
+          border-radius: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.04);
+          color: #eaeef2;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          outline: none;
+          transition: border-color 0.2s;
+          flex: 1;
+          min-width: 150px;
+        }
+        .server-select:focus {
+          border-color: #e50914;
+          box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.08);
+        }
+        .server-select:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .server-select option {
+          background: #1a1a2e;
+          color: #eaeef2;
+        }
+        .result-source {
+          font-size: 12px;
+          color: #6b7280;
+          margin-left: 12px;
         }
 
         /* ===== AUTO GENERATE ===== */
@@ -589,7 +656,7 @@ export default function Home() {
           flex-direction: column;
           gap: 12px;
           align-items: center;
-          padding: 10px 0;
+          padding: 20px 0;
         }
         .btn-generate-auto {
           padding: 16px 48px;
@@ -601,13 +668,13 @@ export default function Home() {
           transition: all 0.25s ease;
           background: linear-gradient(135deg, #e50914, #b20710);
           color: #fff;
-          box-shadow: 0 6px 24px rgba(229,9,20,0.3);
+          box-shadow: 0 6px 24px rgba(229, 9, 20, 0.3);
           text-transform: uppercase;
           letter-spacing: 1px;
         }
         .btn-generate-auto:hover:not(:disabled) {
           transform: scale(1.03);
-          box-shadow: 0 8px 32px rgba(229,9,20,0.45);
+          box-shadow: 0 8px 32px rgba(229, 9, 20, 0.45);
         }
         .btn-generate-auto:disabled {
           opacity: 0.5;
@@ -621,9 +688,9 @@ export default function Home() {
           padding: 16px 18px;
           font-size: 13px;
           font-family: 'SF Mono', 'Fira Code', monospace;
-          border: 1.5px solid rgba(255,255,255,0.06);
+          border: 1.5px solid rgba(255, 255, 255, 0.06);
           border-radius: 16px;
-          background: rgba(255,255,255,0.04);
+          background: rgba(255, 255, 255, 0.04);
           color: #eaeef2;
           resize: vertical;
           transition: border-color 0.2s, box-shadow 0.2s;
@@ -632,93 +699,134 @@ export default function Home() {
           white-space: pre-wrap;
           word-break: break-all;
         }
-        textarea::placeholder { color: #4b5563; }
+        textarea::placeholder {
+          color: #4b5563;
+        }
         textarea:focus {
           outline: none;
           border-color: #e50914;
-          box-shadow: 0 0 0 4px rgba(229,9,20,0.08);
+          box-shadow: 0 0 0 4px rgba(229, 9, 20, 0.08);
         }
-        textarea:disabled { opacity: 0.5; cursor: not-allowed; }
+        textarea:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
 
-        .form-actions { display: flex; flex-direction: column; gap: 10px; }
-        .save-section { display: flex; gap: 10px; }
+        .form-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .save-section {
+          display: flex;
+          gap: 10px;
+        }
         .save-section input {
           flex: 1;
           padding: 10px 14px;
           font-size: 13px;
-          border: 1.5px solid rgba(255,255,255,0.06);
+          border: 1.5px solid rgba(255, 255, 255, 0.06);
           border-radius: 12px;
-          background: rgba(255,255,255,0.04);
+          background: rgba(255, 255, 255, 0.04);
           color: #eaeef2;
           transition: border-color 0.2s;
         }
-        .save-section input::placeholder { color: #4b5563; }
+        .save-section input::placeholder {
+          color: #4b5563;
+        }
         .save-section input:focus {
           outline: none;
           border-color: #e50914;
-          box-shadow: 0 0 0 3px rgba(229,9,20,0.06);
+          box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.06);
         }
         .btn-save {
           padding: 10px 18px;
-          font-size: 13px; font-weight: 600;
-          border: none; border-radius: 12px;
-          background: rgba(255,255,255,0.06);
+          font-size: 13px;
+          font-weight: 600;
+          border: none;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.06);
           color: #eaeef2;
           cursor: pointer;
           transition: all 0.2s;
           white-space: nowrap;
         }
-        .btn-save:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
-        .btn-save:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn-save:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.12);
+        }
+        .btn-save:disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
+        }
 
         .btn-forge {
           width: 100%;
           padding: 16px 20px;
-          font-size: 16px; font-weight: 700;
-          border: none; border-radius: 14px;
+          font-size: 16px;
+          font-weight: 700;
+          border: none;
+          border-radius: 14px;
           background: linear-gradient(135deg, #e50914, #b20710);
           color: #fff;
           cursor: pointer;
           transition: all 0.25s ease;
           letter-spacing: 0.5px;
           text-transform: uppercase;
-          box-shadow: 0 6px 24px rgba(229,9,20,0.25);
+          box-shadow: 0 6px 24px rgba(229, 9, 20, 0.25);
         }
         .btn-forge:hover:not(:disabled) {
           transform: scale(1.01);
-          box-shadow: 0 8px 32px rgba(229,9,20,0.35);
+          box-shadow: 0 8px 32px rgba(229, 9, 20, 0.35);
         }
         .btn-forge:disabled {
-          opacity: 0.4; cursor: not-allowed;
-          transform: none; box-shadow: none;
+          opacity: 0.4;
+          cursor: not-allowed;
+          transform: none;
+          box-shadow: none;
         }
 
         /* ===== RESULT BOX ===== */
         .result-box {
           padding: 20px 22px;
-          background: rgba(16,185,129,0.06);
+          background: rgba(16, 185, 129, 0.06);
           border-radius: 16px;
-          border: 1px solid rgba(16,185,129,0.15);
+          border: 1px solid rgba(16, 185, 129, 0.15);
           animation: fadeUp 0.4s ease;
         }
         .converter-result {
-          background: rgba(16,185,129,0.05);
-          border-color: rgba(16,185,129,0.12);
+          background: rgba(16, 185, 129, 0.05);
+          border-color: rgba(16, 185, 129, 0.12);
         }
         @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
+          from {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
-        .result-header { margin-bottom: 16px; }
+        .result-header {
+          margin-bottom: 16px;
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+        }
         .result-badge {
-          font-size: 18px; font-weight: 700; color: #10b981;
+          font-size: 18px;
+          font-weight: 700;
+          color: #10b981;
         }
         .result-item {
-          display: flex; flex-direction: column; gap: 4px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
           margin-bottom: 14px;
         }
         .result-label {
-          font-size: 11px; font-weight: 700;
+          font-size: 11px;
+          font-weight: 700;
           color: #9ca3af;
           text-transform: uppercase;
           letter-spacing: 0.5px;
@@ -741,19 +849,22 @@ export default function Home() {
           word-break: break-all;
           font-size: 14px;
         }
-        .result-link:hover { text-decoration: underline; }
+        .result-link:hover {
+          text-decoration: underline;
+        }
         .result-token {
           font-family: 'SF Mono', 'Fira Code', monospace;
           font-size: 12px;
-          background: rgba(255,255,255,0.04);
+          background: rgba(255, 255, 255, 0.04);
           padding: 6px 10px;
           border-radius: 8px;
           word-break: break-all;
-          flex: 1; min-width: 0;
+          flex: 1;
+          min-width: 0;
           color: #eaeef2;
         }
         .copy-btn {
-          background: rgba(255,255,255,0.04);
+          background: rgba(255, 255, 255, 0.04);
           border: none;
           font-size: 16px;
           cursor: pointer;
@@ -763,50 +874,63 @@ export default function Home() {
           flex-shrink: 0;
           color: #eaeef2;
         }
-        .copy-btn:hover { background: rgba(255,255,255,0.1); }
+        .copy-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
+        }
         .result-divider {
           border: none;
-          border-top: 1px solid rgba(255,255,255,0.04);
+          border-top: 1px solid rgba(255, 255, 255, 0.04);
           margin: 16px 0 14px;
         }
 
         /* ===== PROFILE GRID ===== */
         .profile-grid {
-          display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
         }
         .profile-item {
-          background: rgba(255,255,255,0.03);
+          background: rgba(255, 255, 255, 0.03);
           padding: 10px 12px;
           border-radius: 10px;
-          display: flex; flex-direction: column; gap: 2px;
-          border: 1px solid rgba(255,255,255,0.03);
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          border: 1px solid rgba(255, 255, 255, 0.03);
         }
         .profile-label {
-          font-size: 10px; font-weight: 600; text-transform: uppercase;
-          letter-spacing: 0.3px; color: #6b7280;
+          font-size: 10px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          color: #6b7280;
         }
         .profile-value {
-          font-size: 14px; font-weight: 500; color: #eaeef2;
+          font-size: 14px;
+          font-weight: 500;
+          color: #eaeef2;
         }
 
         /* ===== CHECKER ===== */
         .cookie-grid {
-          display: flex; flex-direction: column; gap: 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
         }
         .cookie-card {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          background: rgba(255,255,255,0.03);
+          background: rgba(255, 255, 255, 0.03);
           padding: 12px 16px;
           border-radius: 14px;
-          border: 1px solid rgba(255,255,255,0.04);
+          border: 1px solid rgba(255, 255, 255, 0.04);
           flex-wrap: wrap;
           gap: 8px;
         }
         .cookie-card:hover {
-          background: rgba(255,255,255,0.06);
-          border-color: rgba(229,9,20,0.2);
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(229, 9, 20, 0.2);
         }
         .cookie-card-info {
           display: flex;
@@ -831,7 +955,9 @@ export default function Home() {
           text-align: center;
         }
         .cookie-card-actions {
-          display: flex; gap: 8px; align-items: center;
+          display: flex;
+          gap: 8px;
+          align-items: center;
         }
         .btn-check {
           padding: 6px 14px;
@@ -852,7 +978,9 @@ export default function Home() {
           opacity: 0.5;
           cursor: not-allowed;
         }
-        .checker-card { cursor: default; }
+        .checker-card {
+          cursor: default;
+        }
         .btn-delete-sm {
           background: transparent;
           border: none;
@@ -865,41 +993,63 @@ export default function Home() {
         }
         .btn-delete-sm:hover {
           color: #e50914;
-          background: rgba(229,9,20,0.1);
+          background: rgba(229, 9, 20, 0.1);
         }
 
         /* ===== SAVED SECTION ===== */
         .saved-section {
-          background: rgba(255,255,255,0.03);
-          border-radius: 12px; padding: 12px 14px;
-          border: 1px solid rgba(255,255,255,0.04);
+          background: rgba(255, 255, 255, 0.03);
+          border-radius: 12px;
+          padding: 12px 14px;
+          border: 1px solid rgba(255, 255, 255, 0.04);
         }
-        .saved-list { display: flex; flex-wrap: wrap; gap: 6px; }
+        .saved-list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
         .saved-item {
-          display: flex; align-items: center; gap: 4px;
-          background: rgba(229,9,20,0.08);
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          background: rgba(229, 9, 20, 0.08);
           padding: 4px 8px 4px 12px;
           border-radius: 16px;
-          border: 1px solid rgba(229,9,20,0.12);
+          border: 1px solid rgba(229, 9, 20, 0.12);
         }
-        .saved-item:hover { background: rgba(229,9,20,0.16); }
+        .saved-item:hover {
+          background: rgba(229, 9, 20, 0.16);
+        }
         .saved-name {
-          font-size: 12px; font-weight: 500; cursor: pointer;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
           color: #eaeef2;
         }
-        .saved-name:hover { color: #e50914; }
-        .saved-item button {
-          background: transparent; border: none; cursor: pointer;
-          font-size: 12px; padding: 2px 4px; border-radius: 4px;
-          color: #6b7280; transition: all 0.15s;
+        .saved-name:hover {
+          color: #e50914;
         }
-        .saved-item button:hover { color: #eaeef2; }
-        .btn-delete:hover { color: #e50914 !important; }
+        .saved-item button {
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          font-size: 12px;
+          padding: 2px 4px;
+          border-radius: 4px;
+          color: #6b7280;
+          transition: all 0.15s;
+        }
+        .saved-item button:hover {
+          color: #eaeef2;
+        }
+        .btn-delete:hover {
+          color: #e50914 !important;
+        }
 
         /* ===== ERROR ===== */
         .error-box {
           padding: 14px 18px;
-          background: rgba(229,9,20,0.1);
+          background: rgba(229, 9, 20, 0.1);
           border-left: 4px solid #e50914;
           border-radius: 12px;
           color: #f87171;
@@ -908,32 +1058,95 @@ export default function Home() {
         }
 
         footer {
-          margin-top: 28px; padding-top: 16px;
-          border-top: 1px solid rgba(255,255,255,0.04);
+          margin-top: 28px;
+          padding-top: 16px;
+          border-top: 1px solid rgba(255, 255, 255, 0.04);
           text-align: center;
         }
-        footer p { font-size: 12px; color: #4b5563; letter-spacing: 1px; }
+        footer p {
+          font-size: 12px;
+          color: #4b5563;
+          letter-spacing: 1px;
+        }
 
         @media (max-width: 600px) {
-          .container { padding: 20px 16px; border-radius: 20px; }
-          header { flex-direction: column; align-items: flex-start; gap: 8px; }
-          .tagline { font-size: 10px; }
-          .tabs { flex-wrap: wrap; }
-          .tab { font-size: 10px; padding: 8px 10px; flex: 1; min-width: 60px; text-align: center; }
-          .profile-grid { grid-template-columns: 1fr; }
-          .save-section { flex-direction: column; }
-          .btn-save { width: 100%; justify-content: center; }
-          .cookie-card { flex-direction: column; align-items: flex-start; }
-          .cookie-card-status { min-width: auto; text-align: left; }
-          .btn-generate-auto { width: 100%; padding: 14px 24px; font-size: 16px; }
-          .server-selector { flex-direction: column; gap: 8px; }
-          .server-option { min-width: auto; }
+          .container {
+            padding: 20px 16px;
+            border-radius: 20px;
+          }
+          header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+          }
+          .tagline {
+            font-size: 10px;
+          }
+          .tabs {
+            flex-wrap: wrap;
+          }
+          .tab {
+            font-size: 10px;
+            padding: 8px 10px;
+            flex: 1;
+            min-width: 60px;
+            text-align: center;
+          }
+          .profile-grid {
+            grid-template-columns: 1fr;
+          }
+          .save-section {
+            flex-direction: column;
+          }
+          .btn-save {
+            width: 100%;
+            justify-content: center;
+          }
+          .cookie-card {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          .cookie-card-status {
+            min-width: auto;
+            text-align: left;
+          }
+          .btn-generate-auto {
+            width: 100%;
+            padding: 14px 24px;
+            font-size: 16px;
+          }
+          .server-selector {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .server-select {
+            width: 100%;
+          }
+          .result-header {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          .result-source {
+            margin-left: 0;
+            margin-top: 4px;
+          }
         }
         @media (max-width: 400px) {
-          .container { padding: 14px 10px; }
-          textarea { font-size: 12px; padding: 12px 14px; min-height: 100px; }
-          .btn-forge { font-size: 14px; padding: 14px 16px; }
-          .result-token { font-size: 11px; }
+          .container {
+            padding: 14px 10px;
+          }
+          textarea {
+            font-size: 12px;
+            padding: 12px 14px;
+            min-height: 100px;
+          }
+          .btn-forge {
+            font-size: 14px;
+            padding: 14px 16px;
+          }
+          .result-token {
+            font-size: 11px;
+          }
         }
       `}</style>
     </>
