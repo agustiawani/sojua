@@ -1,24 +1,43 @@
 // pages/api/auto-generate.js
-// Versi dengan 3 sumber: local, cloud1 (nftools), cloud2 (yogaxd)
+// Versi final: Server 1 (Online dengan session rotation) + Server 2 (Lokal)
+
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
 // =====================================================
-// KONSTANTA
+// 1. KONSTANTA SERVER
 // =====================================================
+const SERVERS = {
+  server1: {
+    name: 'Server 1 (Online - Unlimited)',
+    source: 'nftools.aroshi.my.id',
+    apiBase: 'http://nftools.aroshi.my.id',
+    devices: ['premium', 'standard', 'basic'],
+    type: 'online',
+  },
+  server2: {
+    name: 'Server 2 (Lokal)',
+    source: 'cookies.json',
+    apiBase: null,
+    devices: ['random'],
+    type: 'local',
+  },
+};
+
+const DEFAULT_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 const TIMEOUT_MS = 10000;
-const CLOUD1_API = 'http://nftools.aroshi.my.id';
-const CLOUD2_API = 'https://yogaxd-netflix.vercel.app/api/proxy';
-const DEVICES = ['desktop', 'mobile', 'smarttv'];
 
 // =====================================================
-// FUNGSI PENDUKUNG
+// 2. FUNGSI PENDUKUNG
 // =====================================================
 function solvePow(challenge, prefix = '0000', maxAttempts = 500000) {
   for (let n = 0; n < maxAttempts; n++) {
     const hash = crypto.createHash('sha256').update(challenge + n).digest('hex');
-    if (hash.startsWith(prefix)) return `${challenge}:${n}`;
+    if (hash.startsWith(prefix)) {
+      return `${challenge}:${n}`;
+    }
   }
   return null;
 }
@@ -36,13 +55,14 @@ async function fetchWithTimeout(url, options = {}, timeout = TIMEOUT_MS) {
   }
 }
 
+function getRandomDevice(devices) {
+  return devices[Math.floor(Math.random() * devices.length)];
+}
+
 // =====================================================
-// SUMBER 1: LOKAL (cookies.json)
+// 3. FUNGSI KONVERSI COOKIE LOKAL (Server 2)
 // =====================================================
 async function convertLocalCookie(cookieStr) {
-  // ... (sama seperti kode sebelumnya, saya singkat agar tidak terlalu panjang)
-  // Asumsikan fungsi ini sama dengan yang sudah ada di file sebelumnya.
-  // Untuk menghemat, saya tulis ulang di sini secara lengkap.
   const API_URL = 'https://ios.prod.ftl.netflix.com/iosui/user/15.48';
   const QUERY_PARAMS = {
     appVersion: '15.48.1',
@@ -96,23 +116,38 @@ async function convertLocalCookie(cookieStr) {
   };
 
   const url = new URL(API_URL);
-  Object.entries(QUERY_PARAMS).forEach(([key, value]) => url.searchParams.append(key, value));
+  Object.entries(QUERY_PARAMS).forEach(([key, value]) => {
+    url.searchParams.append(key, value);
+  });
 
-  const headers = { ...BASE_HEADERS, Cookie: cookieStr.trim() };
+  const headers = {
+    ...BASE_HEADERS,
+    Cookie: cookieStr.trim(),
+  };
+
   const response = await fetch(url.toString(), { method: 'GET', headers });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
 
   const data = await response.json();
   const tokenData = data?.value?.account?.token?.default || {};
   const token = tokenData.token;
   const expires = tokenData.expires;
-  if (!token) throw new Error('Token tidak ditemukan');
+
+  if (!token) {
+    throw new Error('Token tidak ditemukan');
+  }
 
   let expiryDate = null;
   if (expires) {
-    if (typeof expires === 'number' && expires.toString().length === 13) expiryDate = new Date(expires);
-    else if (typeof expires === 'number') expiryDate = new Date(expires * 1000);
-    else expiryDate = new Date(expires);
+    if (typeof expires === 'number' && expires.toString().length === 13) {
+      expiryDate = new Date(expires);
+    } else if (typeof expires === 'number') {
+      expiryDate = new Date(expires * 1000);
+    } else {
+      expiryDate = new Date(expires);
+    }
   }
 
   let profileInfo = null;
@@ -124,6 +159,7 @@ async function convertLocalCookie(cookieStr) {
     profileUrl.searchParams.append('modelType', 'IPHONE8-1');
     profileUrl.searchParams.append('device_type', 'NFAPPL-02-');
     profileUrl.searchParams.append('iosVersion', '15.8.5');
+
     const profileHeaders = { ...BASE_HEADERS, Cookie: cookieStr.trim() };
     const profileRes = await fetch(profileUrl.toString(), { method: 'GET', headers: profileHeaders });
     if (profileRes.ok) {
@@ -147,171 +183,200 @@ async function convertLocalCookie(cookieStr) {
       url: `https://netflix.com/?nftoken=${token}`,
       expiryHuman: expiryDate ? expiryDate.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : 'Tidak diketahui',
       profile: profileInfo,
+      device: 'random',
     },
   };
 }
 
 // =====================================================
-// SUMBER 2: CLOUD1 (nftools.aroshi.my.id)
+// 4. FUNGSI GENERATE DARI SERVER 1 (dengan SESSION ROTATION)
 // =====================================================
-async function fetchFromCloud1() {
-  console.log('[Cloud1] Mencoba...');
-  const sessionRes = await fetchWithTimeout(
-    `${CLOUD1_API}/api/session`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
-      body: JSON.stringify({}),
-    },
-    8000
-  );
-  if (!sessionRes.ok) throw new Error(`Session HTTP ${sessionRes.status}`);
-  const sessionData = await sessionRes.json();
-  if (!sessionData.success || !sessionData.token) throw new Error('Session token tidak valid');
-
-  const sessionToken = sessionData.token;
+async function generateFromServer1(plan = null, maxRetries = 5) {
   const plans = ['premium', 'standard', 'basic'];
-  const plan = plans[Math.floor(Math.random() * plans.length)];
+  const selectedPlan = plan || plans[Math.floor(Math.random() * plans.length)];
 
-  let genRes = await fetchWithTimeout(
-    `${CLOUD1_API}/api/random`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0',
-        'X-NFToken-Session': sessionToken,
-      },
-      body: JSON.stringify({ plan }),
-    },
-    8000
-  );
-  let genData = await genRes.json();
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      console.log(`[Server 1] Attempt ${attempt + 1}/${maxRetries} with new session...`);
 
-  if (genRes.status === 403 && genData.powChallenge) {
-    const proof = solvePow(genData.powChallenge);
-    if (!proof) throw new Error('Gagal menyelesaikan PoW');
-    genRes = await fetchWithTimeout(
-      `${CLOUD1_API}/api/random`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': 'Mozilla/5.0',
-          'X-NFToken-Session': sessionToken,
-          'X-PoW-Proof': proof,
+      const sessionRes = await fetchWithTimeout(
+        `${SERVERS.server1.apiBase}/api/session`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': DEFAULT_UA,
+          },
+          body: JSON.stringify({}),
         },
-        body: JSON.stringify({ plan }),
-      },
-      8000
-    );
-    genData = await genRes.json();
+        8000
+      );
+
+      if (!sessionRes.ok) {
+        throw new Error(`Session HTTP ${sessionRes.status}`);
+      }
+
+      const sessionData = await sessionRes.json();
+      if (!sessionData.success || !sessionData.token) {
+        throw new Error('Session token tidak valid');
+      }
+
+      const sessionToken = sessionData.token;
+
+      let genRes = await fetchWithTimeout(
+        `${SERVERS.server1.apiBase}/api/random`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': DEFAULT_UA,
+            'X-NFToken-Session': sessionToken,
+          },
+          body: JSON.stringify({ plan: selectedPlan }),
+        },
+        8000
+      );
+
+      let genData = await genRes.json();
+
+      if (genRes.status === 403 && genData.powChallenge) {
+        console.log(`[Server 1] PoW challenge detected, solving...`);
+        const proof = solvePow(genData.powChallenge);
+        if (!proof) {
+          throw new Error('Gagal menyelesaikan PoW');
+        }
+
+        genRes = await fetchWithTimeout(
+          `${SERVERS.server1.apiBase}/api/random`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': DEFAULT_UA,
+              'X-NFToken-Session': sessionToken,
+              'X-PoW-Proof': proof,
+            },
+            body: JSON.stringify({ plan: selectedPlan }),
+          },
+          8000
+        );
+        genData = await genRes.json();
+      }
+
+      if (genRes.ok && genData.success && genData.url) {
+        console.log(`[Server 1] ✅ Success on attempt ${attempt + 1}`);
+        return {
+          success: true,
+          url: genData.url,
+          expiry: genData.expires || 'Tidak diketahui',
+          profile: {
+            country: genData.country || 'Tidak diketahui',
+            currency: genData.currency || 'Tidak diketahui',
+            plan: genData.plan || genData.quality || selectedPlan,
+            email: genData.email || 'Tidak diketahui',
+          },
+          device: selectedPlan,
+          source: 'Server 1 (Online - Unlimited)',
+        };
+      }
+
+      const errorMsg = genData.error || 'Unknown error';
+      if (errorMsg.includes('Limit') || errorMsg.includes('harian') || errorMsg.includes('limit')) {
+        console.log(`[Server 1] ⚠️ Daily limit detected, rotating session...`);
+        continue;
+      }
+
+      throw new Error(errorMsg);
+    } catch (error) {
+      console.log(`[Server 1] Attempt ${attempt + 1} failed: ${error.message}`);
+      if (attempt === maxRetries - 1) {
+        throw new Error(`Server 1 gagal setelah ${maxRetries} percobaan: ${error.message}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+    }
   }
 
-  if (!genRes.ok || !genData.success || !genData.url) {
-    throw new Error(genData.error || 'Gagal generate dari Cloud1');
-  }
-
-  return {
-    url: genData.url,
-    expiry: genData.expires || 'Tidak diketahui',
-    profile: {
-      country: genData.country || 'Tidak diketahui',
-      currency: genData.currency || 'Tidak diketahui',
-      plan: genData.plan || genData.quality || 'Tidak diketahui',
-      email: genData.email || 'Tidak diketahui',
-    },
-  };
+  throw new Error('Server 1 gagal setelah semua percobaan');
 }
 
 // =====================================================
-// SUMBER 3: CLOUD2 (yogaxd-netflix.vercel.app)
+// 5. FUNGSI GENERATE DARI SERVER 2 (Lokal)
 // =====================================================
-async function fetchFromCloud2() {
-  console.log('[Cloud2] Mencoba...');
-  const device = DEVICES[Math.floor(Math.random() * DEVICES.length)];
-  const url = `${CLOUD2_API}?action=generate&device=${device}`;
+async function generateFromServer2() {
+  const filePath = path.join(process.cwd(), 'data', 'cookies.json');
 
-  const response = await fetchWithTimeout(url, { method: 'GET' }, 10000);
-  if (!response.ok) {
-    let errMsg = `HTTP ${response.status}`;
-    try { const err = await response.json(); if (err.error) errMsg = err.error; } catch (_) {}
-    throw new Error(errMsg);
+  if (!fs.existsSync(filePath)) {
+    throw new Error('File cookies.json tidak ditemukan.');
   }
 
-  const data = await response.json();
-  if (!data.url) {
-    throw new Error(data.error || 'Gagal generate dari Cloud2');
+  const fileContent = fs.readFileSync(filePath, 'utf-8');
+  const cookies = JSON.parse(fileContent);
+
+  if (!Array.isArray(cookies) || cookies.length === 0) {
+    throw new Error('Tidak ada cookie di cookies.json.');
   }
 
-  const details = data.details || {};
-  return {
-    url: data.url,
-    expiry: data.expires || 'Tidak diketahui',
-    profile: {
-      country: details.Country || 'Tidak diketahui',
-      currency: details.Currency || 'Tidak diketahui',
-      plan: details.Plan || 'Tidak diketahui',
-      email: details.Email || 'Tidak diketahui',
-    },
-  };
+  const shuffled = [...cookies].sort(() => Math.random() - 0.5);
+
+  for (const cookieStr of shuffled) {
+    try {
+      const result = await convertLocalCookie(cookieStr);
+      if (result.success) {
+        return {
+          success: true,
+          url: result.data.url,
+          expiry: result.data.expiryHuman,
+          profile: result.data.profile,
+          device: 'random',
+          source: 'Server 2 (Lokal)',
+        };
+      }
+    } catch (_) {
+      continue;
+    }
+  }
+
+  throw new Error('Semua cookie lokal tidak aktif.');
 }
 
 // =====================================================
-// HANDLER UTAMA
+// 6. FUNGSI UTAMA HANDLER
 // =====================================================
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
+  if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { source = 'cloud1' } = req.query; // default cloud1
+  let serverChoice = 'server1';
+  let deviceChoice = null;
+
+  if (req.method === 'GET') {
+    serverChoice = req.query.server || 'server1';
+    deviceChoice = req.query.device || null;
+  } else {
+    serverChoice = req.body?.server || 'server1';
+    deviceChoice = req.body?.device || null;
+  }
+
+  const validServers = ['server1', 'server2'];
+  if (!validServers.includes(serverChoice)) {
+    return res.status(400).json({ error: 'Server tidak valid. Pilih: server1 atau server2.' });
+  }
+
+  console.log(`[Auto-Generate] Server dipilih: ${serverChoice} (${SERVERS[serverChoice].name})`);
 
   try {
     let result;
 
-    switch (source) {
-      case 'local':
-        // === SUMBER LOKAL ===
-        console.log('[Auto-Generate] Source: LOCAL');
-        const filePath = path.join(process.cwd(), 'data', 'cookies.json');
-        if (!fs.existsSync(filePath)) {
-          return res.status(404).json({ error: 'File cookies.json tidak ditemukan.' });
-        }
-        const fileContent = fs.readFileSync(filePath, 'utf-8');
-        const cookies = JSON.parse(fileContent);
-        if (!Array.isArray(cookies) || cookies.length === 0) {
-          return res.status(404).json({ error: 'Tidak ada cookie di cookies.json.' });
-        }
-        const shuffled = [...cookies].sort(() => Math.random() - 0.5);
-        let found = false;
-        for (const cookieStr of shuffled) {
-          try {
-            const conv = await convertLocalCookie(cookieStr);
-            if (conv.success) {
-              result = conv.data;
-              found = true;
-              break;
-            }
-          } catch (_) { continue; }
-        }
-        if (!found) {
-          return res.status(404).json({ error: 'Semua cookie lokal tidak aktif.' });
-        }
+    switch (serverChoice) {
+      case 'server1':
+        result = await generateFromServer1(deviceChoice, 5);
         break;
-
-      case 'cloud2':
-        // === SUMBER CLOUD2 (yogaxd) ===
-        console.log('[Auto-Generate] Source: CLOUD2');
-        result = await fetchFromCloud2();
+      case 'server2':
+        result = await generateFromServer2();
         break;
-
-      case 'cloud1':
       default:
-        // === SUMBER CLOUD1 (nftools) ===
-        console.log('[Auto-Generate] Source: CLOUD1');
-        result = await fetchFromCloud1();
-        break;
+        throw new Error('Server tidak dikenal');
     }
 
     return res.status(200).json({
@@ -319,12 +384,38 @@ export default async function handler(req, res) {
       url: result.url,
       expiry: result.expiry,
       profile: result.profile,
+      device: result.device,
+      source: result.source,
+      server: serverChoice,
     });
   } catch (error) {
-    console.error(`[Auto-Generate] Error: ${error.message}`);
-    return res.status(500).json({
+    console.log(`[Auto-Generate] Error di ${serverChoice}: ${error.message}`);
+
+    if (serverChoice === 'server1') {
+      try {
+        console.log(`[Auto-Generate] Mencoba fallback ke Server 2 (Lokal)...`);
+        const fallbackResult = await generateFromServer2();
+        return res.status(200).json({
+          success: true,
+          url: fallbackResult.url,
+          expiry: fallbackResult.expiry,
+          profile: fallbackResult.profile,
+          device: fallbackResult.device,
+          source: fallbackResult.source,
+          server: 'server2',
+          fallback: true,
+          originalServer: 'server1',
+        });
+      } catch (fallbackError) {
+        console.log(`[Auto-Generate] Fallback Server 2 gagal: ${fallbackError.message}`);
+      }
+    }
+
+    return res.status(503).json({
       success: false,
-      error: `Gagal: ${error.message}`,
+      error: 'Semua server gagal. Coba lagi nanti.',
+      details: error.message,
+      server: serverChoice,
     });
   }
 }
