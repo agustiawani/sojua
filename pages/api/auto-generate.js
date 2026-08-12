@@ -1,26 +1,24 @@
 // pages/api/auto-generate.js
-// Versi terbaru: Scrape dari nftools.aroshi.my.id + Fallback ke cookies.json lokal
-
+// Versi dengan 3 sumber: local, cloud1 (nftools), cloud2 (yogaxd)
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
 // =====================================================
-// 1. KONSTANTA SUMBER EKSTERNAL
+// KONSTANTA
 // =====================================================
-const EXTERNAL_API = 'http://nftools.aroshi.my.id';
-const DEFAULT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-const TIMEOUT_MS = 10000; // 10 detik (Vercel Hobby limit 10s)
+const TIMEOUT_MS = 10000;
+const CLOUD1_API = 'http://nftools.aroshi.my.id';
+const CLOUD2_API = 'https://yogaxd-netflix.vercel.app/api/proxy';
+const DEVICES = ['desktop', 'mobile', 'smarttv'];
 
 // =====================================================
-// 2. FUNGSI PENDUKUNG
+// FUNGSI PENDUKUNG
 // =====================================================
 function solvePow(challenge, prefix = '0000', maxAttempts = 500000) {
   for (let n = 0; n < maxAttempts; n++) {
     const hash = crypto.createHash('sha256').update(challenge + n).digest('hex');
-    if (hash.startsWith(prefix)) {
-      return `${challenge}:${n}`;
-    }
+    if (hash.startsWith(prefix)) return `${challenge}:${n}`;
   }
   return null;
 }
@@ -39,10 +37,12 @@ async function fetchWithTimeout(url, options = {}, timeout = TIMEOUT_MS) {
 }
 
 // =====================================================
-// 3. FUNGSI KONVERSI COOKIE LOKAL (FALLBACK)
-//    (di-copy dari /api/convert.js)
+// SUMBER 1: LOKAL (cookies.json)
 // =====================================================
 async function convertLocalCookie(cookieStr) {
+  // ... (sama seperti kode sebelumnya, saya singkat agar tidak terlalu panjang)
+  // Asumsikan fungsi ini sama dengan yang sudah ada di file sebelumnya.
+  // Untuk menghemat, saya tulis ulang di sini secara lengkap.
   const API_URL = 'https://ios.prod.ftl.netflix.com/iosui/user/15.48';
   const QUERY_PARAMS = {
     appVersion: '15.48.1',
@@ -96,41 +96,25 @@ async function convertLocalCookie(cookieStr) {
   };
 
   const url = new URL(API_URL);
-  Object.entries(QUERY_PARAMS).forEach(([key, value]) => {
-    url.searchParams.append(key, value);
-  });
+  Object.entries(QUERY_PARAMS).forEach(([key, value]) => url.searchParams.append(key, value));
 
-  const headers = {
-    ...BASE_HEADERS,
-    Cookie: cookieStr.trim(),
-  };
-
+  const headers = { ...BASE_HEADERS, Cookie: cookieStr.trim() };
   const response = await fetch(url.toString(), { method: 'GET', headers });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
   const data = await response.json();
   const tokenData = data?.value?.account?.token?.default || {};
   const token = tokenData.token;
   const expires = tokenData.expires;
-
-  if (!token) {
-    throw new Error('Token tidak ditemukan');
-  }
+  if (!token) throw new Error('Token tidak ditemukan');
 
   let expiryDate = null;
   if (expires) {
-    if (typeof expires === 'number' && expires.toString().length === 13) {
-      expiryDate = new Date(expires);
-    } else if (typeof expires === 'number') {
-      expiryDate = new Date(expires * 1000);
-    } else {
-      expiryDate = new Date(expires);
-    }
+    if (typeof expires === 'number' && expires.toString().length === 13) expiryDate = new Date(expires);
+    else if (typeof expires === 'number') expiryDate = new Date(expires * 1000);
+    else expiryDate = new Date(expires);
   }
 
-  // Ambil info profil
   let profileInfo = null;
   try {
     const profileUrl = new URL('https://ios.prod.ftl.netflix.com/iosui/profiles/current');
@@ -140,7 +124,6 @@ async function convertLocalCookie(cookieStr) {
     profileUrl.searchParams.append('modelType', 'IPHONE8-1');
     profileUrl.searchParams.append('device_type', 'NFAPPL-02-');
     profileUrl.searchParams.append('iosVersion', '15.8.5');
-
     const profileHeaders = { ...BASE_HEADERS, Cookie: cookieStr.trim() };
     const profileRes = await fetch(profileUrl.toString(), { method: 'GET', headers: profileHeaders });
     if (profileRes.ok) {
@@ -169,156 +152,179 @@ async function convertLocalCookie(cookieStr) {
 }
 
 // =====================================================
-// 4. FUNGSI UTAMA HANDLER
+// SUMBER 2: CLOUD1 (nftools.aroshi.my.id)
+// =====================================================
+async function fetchFromCloud1() {
+  console.log('[Cloud1] Mencoba...');
+  const sessionRes = await fetchWithTimeout(
+    `${CLOUD1_API}/api/session`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+      body: JSON.stringify({}),
+    },
+    8000
+  );
+  if (!sessionRes.ok) throw new Error(`Session HTTP ${sessionRes.status}`);
+  const sessionData = await sessionRes.json();
+  if (!sessionData.success || !sessionData.token) throw new Error('Session token tidak valid');
+
+  const sessionToken = sessionData.token;
+  const plans = ['premium', 'standard', 'basic'];
+  const plan = plans[Math.floor(Math.random() * plans.length)];
+
+  let genRes = await fetchWithTimeout(
+    `${CLOUD1_API}/api/random`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0',
+        'X-NFToken-Session': sessionToken,
+      },
+      body: JSON.stringify({ plan }),
+    },
+    8000
+  );
+  let genData = await genRes.json();
+
+  if (genRes.status === 403 && genData.powChallenge) {
+    const proof = solvePow(genData.powChallenge);
+    if (!proof) throw new Error('Gagal menyelesaikan PoW');
+    genRes = await fetchWithTimeout(
+      `${CLOUD1_API}/api/random`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0',
+          'X-NFToken-Session': sessionToken,
+          'X-PoW-Proof': proof,
+        },
+        body: JSON.stringify({ plan }),
+      },
+      8000
+    );
+    genData = await genRes.json();
+  }
+
+  if (!genRes.ok || !genData.success || !genData.url) {
+    throw new Error(genData.error || 'Gagal generate dari Cloud1');
+  }
+
+  return {
+    url: genData.url,
+    expiry: genData.expires || 'Tidak diketahui',
+    profile: {
+      country: genData.country || 'Tidak diketahui',
+      currency: genData.currency || 'Tidak diketahui',
+      plan: genData.plan || genData.quality || 'Tidak diketahui',
+      email: genData.email || 'Tidak diketahui',
+    },
+  };
+}
+
+// =====================================================
+// SUMBER 3: CLOUD2 (yogaxd-netflix.vercel.app)
+// =====================================================
+async function fetchFromCloud2() {
+  console.log('[Cloud2] Mencoba...');
+  const device = DEVICES[Math.floor(Math.random() * DEVICES.length)];
+  const url = `${CLOUD2_API}?action=generate&device=${device}`;
+
+  const response = await fetchWithTimeout(url, { method: 'GET' }, 10000);
+  if (!response.ok) {
+    let errMsg = `HTTP ${response.status}`;
+    try { const err = await response.json(); if (err.error) errMsg = err.error; } catch (_) {}
+    throw new Error(errMsg);
+  }
+
+  const data = await response.json();
+  if (!data.url) {
+    throw new Error(data.error || 'Gagal generate dari Cloud2');
+  }
+
+  const details = data.details || {};
+  return {
+    url: data.url,
+    expiry: data.expires || 'Tidak diketahui',
+    profile: {
+      country: details.Country || 'Tidak diketahui',
+      currency: details.Currency || 'Tidak diketahui',
+      plan: details.Plan || 'Tidak diketahui',
+      email: details.Email || 'Tidak diketahui',
+    },
+  };
+}
+
+// =====================================================
+// HANDLER UTAMA
 // =====================================================
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // --------------------------------
-  // PRIORITAS 1: Scrape dari Sumber Eksternal (nftools.aroshi.my.id)
-  // --------------------------------
+  const { source = 'cloud1' } = req.query; // default cloud1
+
   try {
-    console.log('[Auto-Generate] Mencoba sumber eksternal...');
+    let result;
 
-    // 4a. Buat session
-    const sessionRes = await fetchWithTimeout(
-      `${EXTERNAL_API}/api/session`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': DEFAULT_UA,
-        },
-        body: JSON.stringify({}),
-      },
-      8000
-    );
-
-    if (!sessionRes.ok) {
-      throw new Error(`Session HTTP ${sessionRes.status}`);
-    }
-
-    const sessionData = await sessionRes.json();
-    if (!sessionData.success || !sessionData.token) {
-      throw new Error('Session token tidak valid');
-    }
-
-    const sessionToken = sessionData.token;
-    const plans = ['premium', 'standard', 'basic'];
-    const plan = plans[Math.floor(Math.random() * plans.length)];
-
-    console.log(`[Auto-Generate] Session OK, plan: ${plan}`);
-
-    // 4b. Generate token (dengan kemungkinan PoW)
-    let genRes = await fetchWithTimeout(
-      `${EXTERNAL_API}/api/random`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': DEFAULT_UA,
-          'X-NFToken-Session': sessionToken,
-        },
-        body: JSON.stringify({ plan }),
-      },
-      8000
-    );
-
-    let genData = await genRes.json();
-
-    // 4c. Jika diminta PoW, selesaikan
-    if (genRes.status === 403 && genData.powChallenge) {
-      console.log('[Auto-Generate] PoW challenge detected, solving...');
-      const proof = solvePow(genData.powChallenge);
-      if (!proof) {
-        throw new Error('Gagal menyelesaikan PoW');
-      }
-
-      genRes = await fetchWithTimeout(
-        `${EXTERNAL_API}/api/random`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': DEFAULT_UA,
-            'X-NFToken-Session': sessionToken,
-            'X-PoW-Proof': proof,
-          },
-          body: JSON.stringify({ plan }),
-        },
-        8000
-      );
-      genData = await genRes.json();
-    }
-
-    // 4d. Jika berhasil, kembalikan hasil
-    if (genRes.ok && genData.success && genData.url) {
-      console.log('[Auto-Generate] Sukses dari eksternal!');
-      return res.status(200).json({
-        success: true,
-        url: genData.url,
-        expiry: genData.expires || 'Tidak diketahui',
-        profile: {
-          country: genData.country || 'Tidak diketahui',
-          currency: genData.currency || 'Tidak diketahui',
-          plan: genData.plan || genData.quality || 'Tidak diketahui',
-          email: genData.email || 'Tidak diketahui',
-        },
-      });
-    } else {
-      throw new Error(genData.error || 'Gagal generate dari eksternal');
-    }
-  } catch (error) {
-    console.log(`[Auto-Generate] Sumber eksternal gagal: ${error.message}`);
-
-    // --------------------------------
-    // PRIORITAS 2: Fallback ke cookies.json lokal
-    // --------------------------------
-    try {
-      console.log('[Auto-Generate] Mencoba fallback ke cookies.json lokal...');
-      const filePath = path.join(process.cwd(), 'data', 'cookies.json');
-      
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: 'File cookies.json tidak ditemukan.' });
-      }
-
-      const fileContent = fs.readFileSync(filePath, 'utf-8');
-      const cookies = JSON.parse(fileContent);
-
-      if (!Array.isArray(cookies) || cookies.length === 0) {
-        return res.status(404).json({ error: 'Tidak ada cookie di cookies.json.' });
-      }
-
-      // Acak urutan untuk mencoba
-      const shuffled = [...cookies].sort(() => Math.random() - 0.5);
-
-      for (const cookieStr of shuffled) {
-        try {
-          const result = await convertLocalCookie(cookieStr);
-          if (result.success) {
-            console.log('[Auto-Generate] Sukses dari fallback lokal!');
-            return res.status(200).json({
-              success: true,
-              url: result.data.url,
-              expiry: result.data.expiryHuman,
-              profile: result.data.profile,
-            });
-          }
-        } catch (_) {
-          // Coba cookie berikutnya
-          continue;
+    switch (source) {
+      case 'local':
+        // === SUMBER LOKAL ===
+        console.log('[Auto-Generate] Source: LOCAL');
+        const filePath = path.join(process.cwd(), 'data', 'cookies.json');
+        if (!fs.existsSync(filePath)) {
+          return res.status(404).json({ error: 'File cookies.json tidak ditemukan.' });
         }
-      }
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        const cookies = JSON.parse(fileContent);
+        if (!Array.isArray(cookies) || cookies.length === 0) {
+          return res.status(404).json({ error: 'Tidak ada cookie di cookies.json.' });
+        }
+        const shuffled = [...cookies].sort(() => Math.random() - 0.5);
+        let found = false;
+        for (const cookieStr of shuffled) {
+          try {
+            const conv = await convertLocalCookie(cookieStr);
+            if (conv.success) {
+              result = conv.data;
+              found = true;
+              break;
+            }
+          } catch (_) { continue; }
+        }
+        if (!found) {
+          return res.status(404).json({ error: 'Semua cookie lokal tidak aktif.' });
+        }
+        break;
 
-      return res.status(404).json({ error: 'Semua cookie lokal tidak aktif.' });
-    } catch (localErr) {
-      console.log(`[Auto-Generate] Fallback lokal gagal: ${localErr.message}`);
-      return res.status(500).json({
-        error: 'Sumber eksternal & lokal gagal.',
-        detail: localErr.message,
-      });
+      case 'cloud2':
+        // === SUMBER CLOUD2 (yogaxd) ===
+        console.log('[Auto-Generate] Source: CLOUD2');
+        result = await fetchFromCloud2();
+        break;
+
+      case 'cloud1':
+      default:
+        // === SUMBER CLOUD1 (nftools) ===
+        console.log('[Auto-Generate] Source: CLOUD1');
+        result = await fetchFromCloud1();
+        break;
     }
+
+    return res.status(200).json({
+      success: true,
+      url: result.url,
+      expiry: result.expiry,
+      profile: result.profile,
+    });
+  } catch (error) {
+    console.error(`[Auto-Generate] Error: ${error.message}`);
+    return res.status(500).json({
+      success: false,
+      error: `Gagal: ${error.message}`,
+    });
   }
 }
