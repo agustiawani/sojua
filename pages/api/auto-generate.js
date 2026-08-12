@@ -1,5 +1,5 @@
 // pages/api/auto-generate.js
-// Versi final: Server 1 (Online dengan session rotation) + Server 2 (Lokal)
+// Versi dengan debug dan perbaikan fallback
 
 import fs from 'fs';
 import path from 'path';
@@ -27,7 +27,7 @@ const SERVERS = {
 
 const DEFAULT_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-const TIMEOUT_MS = 10000;
+const TIMEOUT_MS = 12000; // Ditambah jadi 12 detik
 
 // =====================================================
 // 2. FUNGSI PENDUKUNG
@@ -189,16 +189,19 @@ async function convertLocalCookie(cookieStr) {
 }
 
 // =====================================================
-// 4. FUNGSI GENERATE DARI SERVER 1 (dengan SESSION ROTATION)
+// 4. FUNGSI GENERATE DARI SERVER 1 (dengan DEBUG)
 // =====================================================
-async function generateFromServer1(plan = null, maxRetries = 5) {
+async function generateFromServer1(plan = null, maxRetries = 3) {
   const plans = ['premium', 'standard', 'basic'];
   const selectedPlan = plan || plans[Math.floor(Math.random() * plans.length)];
 
+  console.log(`[Server 1] 🚀 Memulai generate dengan plan: ${selectedPlan}`);
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      console.log(`[Server 1] Attempt ${attempt + 1}/${maxRetries} with new session...`);
+      console.log(`[Server 1] 📡 Attempt ${attempt + 1}/${maxRetries} - Membuat session baru...`);
 
+      // 1. Buat session
       const sessionRes = await fetchWithTimeout(
         `${SERVERS.server1.apiBase}/api/session`,
         {
@@ -212,17 +215,27 @@ async function generateFromServer1(plan = null, maxRetries = 5) {
         8000
       );
 
+      console.log(`[Server 1] Session response status: ${sessionRes.status}`);
+
       if (!sessionRes.ok) {
-        throw new Error(`Session HTTP ${sessionRes.status}`);
+        const errorText = await sessionRes.text();
+        console.log(`[Server 1] ❌ Session gagal: ${sessionRes.status} - ${errorText}`);
+        throw new Error(`Session HTTP ${sessionRes.status}: ${errorText}`);
       }
 
       const sessionData = await sessionRes.json();
+      console.log(`[Server 1] Session data:`, JSON.stringify(sessionData).slice(0, 200));
+
       if (!sessionData.success || !sessionData.token) {
+        console.log(`[Server 1] ❌ Session token tidak valid`);
         throw new Error('Session token tidak valid');
       }
 
       const sessionToken = sessionData.token;
+      console.log(`[Server 1] ✅ Session token didapat: ${sessionToken.slice(0, 30)}...`);
 
+      // 2. Generate token
+      console.log(`[Server 1] 🔑 Mencoba generate token dengan plan: ${selectedPlan}`);
       let genRes = await fetchWithTimeout(
         `${SERVERS.server1.apiBase}/api/random`,
         {
@@ -237,14 +250,19 @@ async function generateFromServer1(plan = null, maxRetries = 5) {
         8000
       );
 
+      console.log(`[Server 1] Generate response status: ${genRes.status}`);
       let genData = await genRes.json();
+      console.log(`[Server 1] Generate response:`, JSON.stringify(genData).slice(0, 300));
 
+      // 3. Jika diminta PoW
       if (genRes.status === 403 && genData.powChallenge) {
-        console.log(`[Server 1] PoW challenge detected, solving...`);
+        console.log(`[Server 1] 🧩 PoW challenge detected, solving...`);
         const proof = solvePow(genData.powChallenge);
         if (!proof) {
+          console.log(`[Server 1] ❌ Gagal menyelesaikan PoW`);
           throw new Error('Gagal menyelesaikan PoW');
         }
+        console.log(`[Server 1] ✅ PoW solved: ${proof.slice(0, 30)}...`);
 
         genRes = await fetchWithTimeout(
           `${SERVERS.server1.apiBase}/api/random`,
@@ -261,10 +279,12 @@ async function generateFromServer1(plan = null, maxRetries = 5) {
           8000
         );
         genData = await genRes.json();
+        console.log(`[Server 1] PoW retry response:`, JSON.stringify(genData).slice(0, 300));
       }
 
+      // 4. Cek hasil
       if (genRes.ok && genData.success && genData.url) {
-        console.log(`[Server 1] ✅ Success on attempt ${attempt + 1}`);
+        console.log(`[Server 1] ✅ SUCCESS on attempt ${attempt + 1}!`);
         return {
           success: true,
           url: genData.url,
@@ -280,19 +300,28 @@ async function generateFromServer1(plan = null, maxRetries = 5) {
         };
       }
 
+      // 5. Jika gagal karena limit, coba lagi dengan session baru
       const errorMsg = genData.error || 'Unknown error';
-      if (errorMsg.includes('Limit') || errorMsg.includes('harian') || errorMsg.includes('limit')) {
-        console.log(`[Server 1] ⚠️ Daily limit detected, rotating session...`);
+      console.log(`[Server 1] ⚠️ Gagal: ${errorMsg}`);
+
+      if (
+        errorMsg.toLowerCase().includes('limit') ||
+        errorMsg.toLowerCase().includes('harian') ||
+        errorMsg.toLowerCase().includes('daily')
+      ) {
+        console.log(`[Server 1] 🔄 Limit detected, rotating session...`);
         continue;
       }
 
+      // Error lain, lempar
       throw new Error(errorMsg);
     } catch (error) {
-      console.log(`[Server 1] Attempt ${attempt + 1} failed: ${error.message}`);
+      console.log(`[Server 1] ❌ Attempt ${attempt + 1} failed: ${error.message}`);
       if (attempt === maxRetries - 1) {
+        console.log(`[Server 1] 💀 Semua percobaan gagal.`);
         throw new Error(`Server 1 gagal setelah ${maxRetries} percobaan: ${error.message}`);
       }
-      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+      await new Promise((resolve) => setTimeout(resolve, 2000 * (attempt + 1)));
     }
   }
 
@@ -303,9 +332,12 @@ async function generateFromServer1(plan = null, maxRetries = 5) {
 // 5. FUNGSI GENERATE DARI SERVER 2 (Lokal)
 // =====================================================
 async function generateFromServer2() {
+  console.log(`[Server 2] 📂 Mencoba generate dari cookies.json lokal...`);
+
   const filePath = path.join(process.cwd(), 'data', 'cookies.json');
 
   if (!fs.existsSync(filePath)) {
+    console.log(`[Server 2] ❌ File cookies.json tidak ditemukan di: ${filePath}`);
     throw new Error('File cookies.json tidak ditemukan.');
   }
 
@@ -313,15 +345,21 @@ async function generateFromServer2() {
   const cookies = JSON.parse(fileContent);
 
   if (!Array.isArray(cookies) || cookies.length === 0) {
+    console.log(`[Server 2] ❌ Tidak ada cookie di cookies.json`);
     throw new Error('Tidak ada cookie di cookies.json.');
   }
 
+  console.log(`[Server 2] 📋 Total cookie: ${cookies.length}`);
+
   const shuffled = [...cookies].sort(() => Math.random() - 0.5);
 
-  for (const cookieStr of shuffled) {
+  for (let i = 0; i < shuffled.length; i++) {
+    const cookieStr = shuffled[i];
     try {
+      console.log(`[Server 2] 🔑 Mencoba cookie ${i + 1}/${shuffled.length}...`);
       const result = await convertLocalCookie(cookieStr);
       if (result.success) {
+        console.log(`[Server 2] ✅ Success!`);
         return {
           success: true,
           url: result.data.url,
@@ -331,11 +369,13 @@ async function generateFromServer2() {
           source: 'Server 2 (Lokal)',
         };
       }
-    } catch (_) {
+    } catch (error) {
+      console.log(`[Server 2] ❌ Cookie ${i + 1} gagal: ${error.message}`);
       continue;
     }
   }
 
+  console.log(`[Server 2] 💀 Semua cookie lokal tidak aktif.`);
   throw new Error('Semua cookie lokal tidak aktif.');
 }
 
@@ -363,14 +403,16 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Server tidak valid. Pilih: server1 atau server2.' });
   }
 
-  console.log(`[Auto-Generate] Server dipilih: ${serverChoice} (${SERVERS[serverChoice].name})`);
+  console.log(`[Auto-Generate] ========================================`);
+  console.log(`[Auto-Generate] 📌 Server dipilih: ${serverChoice} (${SERVERS[serverChoice].name})`);
+  console.log(`[Auto-Generate] ========================================`);
 
   try {
     let result;
 
     switch (serverChoice) {
       case 'server1':
-        result = await generateFromServer1(deviceChoice, 5);
+        result = await generateFromServer1(deviceChoice, 3);
         break;
       case 'server2':
         result = await generateFromServer2();
@@ -379,6 +421,7 @@ export default async function handler(req, res) {
         throw new Error('Server tidak dikenal');
     }
 
+    console.log(`[Auto-Generate] ✅ Berhasil! Source: ${result.source}`);
     return res.status(200).json({
       success: true,
       url: result.url,
@@ -389,12 +432,14 @@ export default async function handler(req, res) {
       server: serverChoice,
     });
   } catch (error) {
-    console.log(`[Auto-Generate] Error di ${serverChoice}: ${error.message}`);
+    console.log(`[Auto-Generate] ❌ Error di ${serverChoice}: ${error.message}`);
 
+    // Jika server 1 gagal, coba fallback ke server 2
     if (serverChoice === 'server1') {
       try {
-        console.log(`[Auto-Generate] Mencoba fallback ke Server 2 (Lokal)...`);
+        console.log(`[Auto-Generate] 🔄 Mencoba fallback ke Server 2 (Lokal)...`);
         const fallbackResult = await generateFromServer2();
+        console.log(`[Auto-Generate] ✅ Fallback berhasil!`);
         return res.status(200).json({
           success: true,
           url: fallbackResult.url,
@@ -407,7 +452,7 @@ export default async function handler(req, res) {
           originalServer: 'server1',
         });
       } catch (fallbackError) {
-        console.log(`[Auto-Generate] Fallback Server 2 gagal: ${fallbackError.message}`);
+        console.log(`[Auto-Generate] ❌ Fallback Server 2 gagal: ${fallbackError.message}`);
       }
     }
 
