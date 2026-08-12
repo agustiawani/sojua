@@ -1,13 +1,10 @@
 // pages/api/auto-generate.js
-// Sumber Server 1: https://yogaxd-netflix.vercel.app/api/proxy (tanpa limit)
+// Server 1: https://yogaxd-netflix.vercel.app (tanpa limit, support TV)
 // Server 2: Lokal (cookies.json)
 
 import fs from 'fs';
 import path from 'path';
 
-// =====================================================
-// 1. KONSTANTA SERVER
-// =====================================================
 const SERVERS = {
   server1: {
     name: 'Server 1 (Online + TV)',
@@ -42,9 +39,7 @@ async function fetchWithTimeout(url, options = {}, timeout = TIMEOUT_MS) {
   }
 }
 
-// =====================================================
-// 2. FUNGSI KONVERSI COOKIE LOKAL (Server 2)
-// =====================================================
+// ===== FUNGSI KONVERSI COOKIE LOKAL (Server 2) =====
 async function convertLocalCookie(cookieStr) {
   const API_URL = 'https://ios.prod.ftl.netflix.com/iosui/user/15.48';
   const QUERY_PARAMS = {
@@ -67,7 +62,6 @@ async function convertLocalCookie(cookieStr) {
     progressive: 'false',
     responseFormat: 'json',
   };
-
   const BASE_HEADERS = {
     'User-Agent': 'Argo/15.48.1 (iPhone; iOS 15.8.5; Scale/2.00)',
     'x-netflix.request.attempt': '1',
@@ -99,40 +93,22 @@ async function convertLocalCookie(cookieStr) {
   };
 
   const url = new URL(API_URL);
-  Object.entries(QUERY_PARAMS).forEach(([key, value]) => {
-    url.searchParams.append(key, value);
-  });
-
-  const headers = {
-    ...BASE_HEADERS,
-    Cookie: cookieStr.trim(),
-  };
-
+  Object.entries(QUERY_PARAMS).forEach(([k, v]) => url.searchParams.append(k, v));
+  const headers = { ...BASE_HEADERS, Cookie: cookieStr.trim() };
   const response = await fetch(url.toString(), { method: 'GET', headers });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const data = await response.json();
   const tokenData = data?.value?.account?.token?.default || {};
   const token = tokenData.token;
   const expires = tokenData.expires;
-
-  if (!token) {
-    throw new Error('Token tidak ditemukan');
-  }
+  if (!token) throw new Error('Token tidak ditemukan');
 
   let expiryDate = null;
   if (expires) {
-    if (typeof expires === 'number' && expires.toString().length === 13) {
-      expiryDate = new Date(expires);
-    } else if (typeof expires === 'number') {
-      expiryDate = new Date(expires * 1000);
-    } else {
-      expiryDate = new Date(expires);
-    }
+    if (typeof expires === 'number' && expires.toString().length === 13) expiryDate = new Date(expires);
+    else if (typeof expires === 'number') expiryDate = new Date(expires * 1000);
+    else expiryDate = new Date(expires);
   }
-
   let profileInfo = null;
   try {
     const profileUrl = new URL('https://ios.prod.ftl.netflix.com/iosui/profiles/current');
@@ -142,7 +118,6 @@ async function convertLocalCookie(cookieStr) {
     profileUrl.searchParams.append('modelType', 'IPHONE8-1');
     profileUrl.searchParams.append('device_type', 'NFAPPL-02-');
     profileUrl.searchParams.append('iosVersion', '15.8.5');
-
     const profileHeaders = { ...BASE_HEADERS, Cookie: cookieStr.trim() };
     const profileRes = await fetch(profileUrl.toString(), { method: 'GET', headers: profileHeaders });
     if (profileRes.ok) {
@@ -158,73 +133,73 @@ async function convertLocalCookie(cookieStr) {
       }
     }
   } catch (_) {}
-
   return {
     success: true,
     data: {
       token,
       url: `https://netflix.com/?nftoken=${token}`,
-      expiryHuman: expiryDate
-        ? expiryDate.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
-        : 'Tidak diketahui',
+      expiryHuman: expiryDate ? expiryDate.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : 'Tidak diketahui',
       profile: profileInfo,
       device: 'random',
     },
   };
 }
 
-// =====================================================
-// 3. FUNGSI GENERATE DARI SERVER 1 (yogaxd-netflix, tanpa limit)
-// =====================================================
+// ===== FUNGSI GENERATE DARI SERVER 1 (yogaxd) =====
 async function generateFromServer1(device = null) {
   const devices = SERVERS.server1.devices;
   const selectedDevice = device || devices[Math.floor(Math.random() * devices.length)];
-
-  // Jika device dipilih secara spesifik, hanya coba device itu
   const deviceAttempts = device ? [device] : devices;
-  let lastError = null;
+
+  // Ambil cookie dari halaman utama
+  let cookieString = '';
+  try {
+    const homeRes = await fetchWithTimeout(
+      'https://yogaxd-netflix.vercel.app/',
+      {
+        method: 'GET',
+        headers: {
+          'User-Agent': DEFAULT_UA,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      },
+      8000
+    );
+    const setCookie = homeRes.headers.get('set-cookie');
+    if (setCookie) {
+      const parts = setCookie.split(';')[0];
+      if (parts) cookieString = parts;
+    }
+  } catch (e) {
+    console.log('Gagal mengambil cookie dari halaman utama:', e.message);
+  }
 
   for (const dev of deviceAttempts) {
     try {
-      console.log(`[Server 1] Mencoba device: ${dev}`);
       const url = `${SERVERS.server1.apiBase}?action=generate&device=${dev}`;
-
-      const response = await fetchWithTimeout(
-        url,
-        {
-          method: 'GET',
-          headers: {
-            'User-Agent': DEFAULT_UA,
-            'Origin': 'https://yogaxd-netflix.vercel.app',
-            'Referer': 'https://yogaxd-netflix.vercel.app/',
-            'Accept': 'application/json',
-            'Cache-Control': 'no-cache',
-          },
-        },
-        8000
-      );
-
+      const headers = {
+        'User-Agent': DEFAULT_UA,
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache',
+        'Origin': 'https://yogaxd-netflix.vercel.app',
+        'Referer': 'https://yogaxd-netflix.vercel.app/',
+      };
+      if (cookieString) {
+        headers['Cookie'] = cookieString;
+      }
+      const response = await fetchWithTimeout(url, { method: 'GET', headers }, 8000);
       if (!response.ok) {
-        let errorMsg = `HTTP ${response.status}`;
-        try {
-          const errData = await response.json();
-          errorMsg = errData.error || errData.message || errorMsg;
-        } catch (_) {}
-        throw new Error(`Server 1 gagal: ${errorMsg}`);
+        const errText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errText.slice(0, 100)}`);
       }
-
       const data = await response.json();
-
-      // Cek error dari API
       if (data.error) {
-        throw new Error(`Server 1 error: ${data.error} - ${data.message || ''}`);
+        throw new Error(`${data.error} - ${data.message || ''}`);
       }
-
       if (!data.url) {
-        throw new Error('Server 1: Token tidak ditemukan dalam respons');
+        throw new Error('Token tidak ditemukan dalam respons');
       }
-
-      // Ekstrak informasi dari details
       const details = data.details || {};
       const token = data.url.split('nftoken=')[1] || '';
 
@@ -235,7 +210,7 @@ async function generateFromServer1(device = null) {
         profile: {
           country: details.Country || 'Tidak diketahui',
           currency: 'Tidak diketahui',
-          plan: details.Plan || details.quality || 'Standard',
+          plan: details.Plan || 'Standard',
           email: details.Email || 'Tidak diketahui',
           device: dev,
           profileName: details.Profile || 'Tidak diketahui',
@@ -247,50 +222,25 @@ async function generateFromServer1(device = null) {
       };
     } catch (error) {
       console.log(`[Server 1] Device ${dev} gagal: ${error.message}`);
-      lastError = error;
-      // Jika device dipilih secara spesifik, langsung lempar error
       if (device) throw error;
     }
   }
 
-  // Jika semua device gagal
-  throw new Error(
-    `Server 1 gagal: ${lastError ? lastError.message : 'Semua device tidak berhasil'}`
-  );
+  throw new Error('Server 1 gagal: semua device tidak berhasil');
 }
 
-// =====================================================
-// 4. FUNGSI GENERATE DARI SERVER 2 (Lokal)
-// =====================================================
+// ===== FUNGSI GENERATE DARI SERVER 2 (Lokal) =====
 async function generateFromServer2() {
-  console.log(`[Server 2] 📂 Mencoba generate dari cookies.json lokal...`);
-
   const filePath = path.join(process.cwd(), 'data', 'cookies.json');
-
-  if (!fs.existsSync(filePath)) {
-    console.log(`[Server 2] ❌ File cookies.json tidak ditemukan di: ${filePath}`);
-    throw new Error('File cookies.json tidak ditemukan.');
-  }
-
+  if (!fs.existsSync(filePath)) throw new Error('File cookies.json tidak ditemukan.');
   const fileContent = fs.readFileSync(filePath, 'utf-8');
   const cookies = JSON.parse(fileContent);
-
-  if (!Array.isArray(cookies) || cookies.length === 0) {
-    console.log(`[Server 2] ❌ Tidak ada cookie di cookies.json`);
-    throw new Error('Tidak ada cookie di cookies.json.');
-  }
-
-  console.log(`[Server 2] 📋 Total cookie: ${cookies.length}`);
-
+  if (!Array.isArray(cookies) || cookies.length === 0) throw new Error('Tidak ada cookie di cookies.json.');
   const shuffled = [...cookies].sort(() => Math.random() - 0.5);
-
-  for (let i = 0; i < shuffled.length; i++) {
-    const cookieStr = shuffled[i];
+  for (const cookieStr of shuffled) {
     try {
-      console.log(`[Server 2] 🔑 Mencoba cookie ${i + 1}/${shuffled.length}...`);
       const result = await convertLocalCookie(cookieStr);
       if (result.success) {
-        console.log(`[Server 2] ✅ Success!`);
         return {
           success: true,
           url: result.data.url,
@@ -300,31 +250,21 @@ async function generateFromServer2() {
           source: 'Server 2 (Lokal)',
         };
       }
-    } catch (error) {
-      console.log(`[Server 2] ❌ Cookie ${i + 1} gagal: ${error.message}`);
-      continue;
-    }
+    } catch (_) {}
   }
-
-  console.log(`[Server 2] 💀 Semua cookie lokal tidak aktif.`);
   throw new Error('Semua cookie lokal tidak aktif.');
 }
 
-// =====================================================
-// 5. FUNGSI UTAMA HANDLER
-// =====================================================
+// ===== HANDLER UTAMA =====
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-
   let serverChoice = req.method === 'GET' ? req.query.server : req.body?.server;
   serverChoice = serverChoice || 'server1';
-
   if (!['server1', 'server2'].includes(serverChoice)) {
     return res.status(400).json({ error: 'Server tidak valid.' });
   }
-
   console.log(`[Auto-Generate] Server dipilih: ${serverChoice}`);
 
   try {
@@ -336,7 +276,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, ...result, server: 'server2' });
     }
   } catch (error) {
-    // Jika server 1 gagal, fallback ke server 2
     if (serverChoice === 'server1') {
       console.log('[Auto-Generate] Server 1 gagal, fallback ke Server 2');
       try {
@@ -356,7 +295,6 @@ export default async function handler(req, res) {
         });
       }
     }
-
     return res.status(503).json({
       success: false,
       error: error.message || 'Terjadi kesalahan.',
