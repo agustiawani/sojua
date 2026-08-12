@@ -1,19 +1,19 @@
 // pages/api/auto-generate.js
-// Versi dengan debug dan perbaikan fallback
+// Sumber Server 1: https://yogaxd-netflix.vercel.app/api/proxy (tanpa limit)
+// Server 2: Lokal (cookies.json)
 
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
 
 // =====================================================
 // 1. KONSTANTA SERVER
 // =====================================================
 const SERVERS = {
   server1: {
-    name: 'Server 1 (Online - Unlimited)',
-    source: 'nftools.aroshi.my.id',
-    apiBase: 'http://nftools.aroshi.my.id',
-    devices: ['premium', 'standard', 'basic'],
+    name: 'Server 1 (Online + TV)',
+    source: 'yogaxd-netflix.vercel.app',
+    apiBase: 'https://yogaxd-netflix.vercel.app/api/proxy',
+    devices: ['desktop', 'mobile', 'smarttv'],
     type: 'online',
   },
   server2: {
@@ -26,21 +26,8 @@ const SERVERS = {
 };
 
 const DEFAULT_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-const TIMEOUT_MS = 12000; // Ditambah jadi 12 detik
-
-// =====================================================
-// 2. FUNGSI PENDUKUNG
-// =====================================================
-function solvePow(challenge, prefix = '0000', maxAttempts = 500000) {
-  for (let n = 0; n < maxAttempts; n++) {
-    const hash = crypto.createHash('sha256').update(challenge + n).digest('hex');
-    if (hash.startsWith(prefix)) {
-      return `${challenge}:${n}`;
-    }
-  }
-  return null;
-}
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+const TIMEOUT_MS = 10000;
 
 async function fetchWithTimeout(url, options = {}, timeout = TIMEOUT_MS) {
   const controller = new AbortController();
@@ -55,12 +42,8 @@ async function fetchWithTimeout(url, options = {}, timeout = TIMEOUT_MS) {
   }
 }
 
-function getRandomDevice(devices) {
-  return devices[Math.floor(Math.random() * devices.length)];
-}
-
 // =====================================================
-// 3. FUNGSI KONVERSI COOKIE LOKAL (Server 2)
+// 2. FUNGSI KONVERSI COOKIE LOKAL (Server 2)
 // =====================================================
 async function convertLocalCookie(cookieStr) {
   const API_URL = 'https://ios.prod.ftl.netflix.com/iosui/user/15.48';
@@ -181,7 +164,9 @@ async function convertLocalCookie(cookieStr) {
     data: {
       token,
       url: `https://netflix.com/?nftoken=${token}`,
-      expiryHuman: expiryDate ? expiryDate.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : 'Tidak diketahui',
+      expiryHuman: expiryDate
+        ? expiryDate.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+        : 'Tidak diketahui',
       profile: profileInfo,
       device: 'random',
     },
@@ -189,147 +174,93 @@ async function convertLocalCookie(cookieStr) {
 }
 
 // =====================================================
-// 4. FUNGSI GENERATE DARI SERVER 1 (dengan DEBUG)
+// 3. FUNGSI GENERATE DARI SERVER 1 (yogaxd-netflix, tanpa limit)
 // =====================================================
-async function generateFromServer1(plan = null, maxRetries = 3) {
-  const plans = ['premium', 'standard', 'basic'];
-  const selectedPlan = plan || plans[Math.floor(Math.random() * plans.length)];
+async function generateFromServer1(device = null) {
+  const devices = SERVERS.server1.devices;
+  const selectedDevice = device || devices[Math.floor(Math.random() * devices.length)];
 
-  console.log(`[Server 1] 🚀 Memulai generate dengan plan: ${selectedPlan}`);
+  // Jika device dipilih secara spesifik, hanya coba device itu
+  const deviceAttempts = device ? [device] : devices;
+  let lastError = null;
 
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
+  for (const dev of deviceAttempts) {
     try {
-      console.log(`[Server 1] 📡 Attempt ${attempt + 1}/${maxRetries} - Membuat session baru...`);
+      console.log(`[Server 1] Mencoba device: ${dev}`);
+      const url = `${SERVERS.server1.apiBase}?action=generate&device=${dev}`;
 
-      // 1. Buat session
-      const sessionRes = await fetchWithTimeout(
-        `${SERVERS.server1.apiBase}/api/session`,
+      const response = await fetchWithTimeout(
+        url,
         {
-          method: 'POST',
+          method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
             'User-Agent': DEFAULT_UA,
+            'Origin': 'https://yogaxd-netflix.vercel.app',
+            'Referer': 'https://yogaxd-netflix.vercel.app/',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache',
           },
-          body: JSON.stringify({}),
         },
         8000
       );
 
-      console.log(`[Server 1] Session response status: ${sessionRes.status}`);
-
-      if (!sessionRes.ok) {
-        const errorText = await sessionRes.text();
-        console.log(`[Server 1] ❌ Session gagal: ${sessionRes.status} - ${errorText}`);
-        throw new Error(`Session HTTP ${sessionRes.status}: ${errorText}`);
+      if (!response.ok) {
+        let errorMsg = `HTTP ${response.status}`;
+        try {
+          const errData = await response.json();
+          errorMsg = errData.error || errData.message || errorMsg;
+        } catch (_) {}
+        throw new Error(`Server 1 gagal: ${errorMsg}`);
       }
 
-      const sessionData = await sessionRes.json();
-      console.log(`[Server 1] Session data:`, JSON.stringify(sessionData).slice(0, 200));
+      const data = await response.json();
 
-      if (!sessionData.success || !sessionData.token) {
-        console.log(`[Server 1] ❌ Session token tidak valid`);
-        throw new Error('Session token tidak valid');
+      // Cek error dari API
+      if (data.error) {
+        throw new Error(`Server 1 error: ${data.error} - ${data.message || ''}`);
       }
 
-      const sessionToken = sessionData.token;
-      console.log(`[Server 1] ✅ Session token didapat: ${sessionToken.slice(0, 30)}...`);
+      if (!data.url) {
+        throw new Error('Server 1: Token tidak ditemukan dalam respons');
+      }
 
-      // 2. Generate token
-      console.log(`[Server 1] 🔑 Mencoba generate token dengan plan: ${selectedPlan}`);
-      let genRes = await fetchWithTimeout(
-        `${SERVERS.server1.apiBase}/api/random`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': DEFAULT_UA,
-            'X-NFToken-Session': sessionToken,
-          },
-          body: JSON.stringify({ plan: selectedPlan }),
+      // Ekstrak informasi dari details
+      const details = data.details || {};
+      const token = data.url.split('nftoken=')[1] || '';
+
+      return {
+        success: true,
+        url: data.url,
+        expiry: data.expires || 'Tidak diketahui',
+        profile: {
+          country: details.Country || 'Tidak diketahui',
+          currency: 'Tidak diketahui',
+          plan: details.Plan || details.quality || 'Standard',
+          email: details.Email || 'Tidak diketahui',
+          device: dev,
+          profileName: details.Profile || 'Tidak diketahui',
+          lastActive: details['Last Active'] || 'Tidak diketahui',
+          billingDate: details['Billing Date'] || 'Tidak diketahui',
         },
-        8000
-      );
-
-      console.log(`[Server 1] Generate response status: ${genRes.status}`);
-      let genData = await genRes.json();
-      console.log(`[Server 1] Generate response:`, JSON.stringify(genData).slice(0, 300));
-
-      // 3. Jika diminta PoW
-      if (genRes.status === 403 && genData.powChallenge) {
-        console.log(`[Server 1] 🧩 PoW challenge detected, solving...`);
-        const proof = solvePow(genData.powChallenge);
-        if (!proof) {
-          console.log(`[Server 1] ❌ Gagal menyelesaikan PoW`);
-          throw new Error('Gagal menyelesaikan PoW');
-        }
-        console.log(`[Server 1] ✅ PoW solved: ${proof.slice(0, 30)}...`);
-
-        genRes = await fetchWithTimeout(
-          `${SERVERS.server1.apiBase}/api/random`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': DEFAULT_UA,
-              'X-NFToken-Session': sessionToken,
-              'X-PoW-Proof': proof,
-            },
-            body: JSON.stringify({ plan: selectedPlan }),
-          },
-          8000
-        );
-        genData = await genRes.json();
-        console.log(`[Server 1] PoW retry response:`, JSON.stringify(genData).slice(0, 300));
-      }
-
-      // 4. Cek hasil
-      if (genRes.ok && genData.success && genData.url) {
-        console.log(`[Server 1] ✅ SUCCESS on attempt ${attempt + 1}!`);
-        return {
-          success: true,
-          url: genData.url,
-          expiry: genData.expires || 'Tidak diketahui',
-          profile: {
-            country: genData.country || 'Tidak diketahui',
-            currency: genData.currency || 'Tidak diketahui',
-            plan: genData.plan || genData.quality || selectedPlan,
-            email: genData.email || 'Tidak diketahui',
-          },
-          device: selectedPlan,
-          source: 'Server 1 (Online - Unlimited)',
-        };
-      }
-
-      // 5. Jika gagal karena limit, coba lagi dengan session baru
-      const errorMsg = genData.error || 'Unknown error';
-      console.log(`[Server 1] ⚠️ Gagal: ${errorMsg}`);
-
-      if (
-        errorMsg.toLowerCase().includes('limit') ||
-        errorMsg.toLowerCase().includes('harian') ||
-        errorMsg.toLowerCase().includes('daily')
-      ) {
-        console.log(`[Server 1] 🔄 Limit detected, rotating session...`);
-        continue;
-      }
-
-      // Error lain, lempar
-      throw new Error(errorMsg);
+        device: dev,
+        source: 'Server 1 (Online + TV)',
+      };
     } catch (error) {
-      console.log(`[Server 1] ❌ Attempt ${attempt + 1} failed: ${error.message}`);
-      if (attempt === maxRetries - 1) {
-        console.log(`[Server 1] 💀 Semua percobaan gagal.`);
-        throw new Error(`Server 1 gagal setelah ${maxRetries} percobaan: ${error.message}`);
-      }
-      await new Promise((resolve) => setTimeout(resolve, 2000 * (attempt + 1)));
+      console.log(`[Server 1] Device ${dev} gagal: ${error.message}`);
+      lastError = error;
+      // Jika device dipilih secara spesifik, langsung lempar error
+      if (device) throw error;
     }
   }
 
-  throw new Error('Server 1 gagal setelah semua percobaan');
+  // Jika semua device gagal
+  throw new Error(
+    `Server 1 gagal: ${lastError ? lastError.message : 'Semua device tidak berhasil'}`
+  );
 }
 
 // =====================================================
-// 5. FUNGSI GENERATE DARI SERVER 2 (Lokal)
+// 4. FUNGSI GENERATE DARI SERVER 2 (Lokal)
 // =====================================================
 async function generateFromServer2() {
   console.log(`[Server 2] 📂 Mencoba generate dari cookies.json lokal...`);
@@ -380,87 +311,55 @@ async function generateFromServer2() {
 }
 
 // =====================================================
-// 6. FUNGSI UTAMA HANDLER
+// 5. FUNGSI UTAMA HANDLER
 // =====================================================
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  let serverChoice = 'server1';
-  let deviceChoice = null;
+  let serverChoice = req.method === 'GET' ? req.query.server : req.body?.server;
+  serverChoice = serverChoice || 'server1';
 
-  if (req.method === 'GET') {
-    serverChoice = req.query.server || 'server1';
-    deviceChoice = req.query.device || null;
-  } else {
-    serverChoice = req.body?.server || 'server1';
-    deviceChoice = req.body?.device || null;
+  if (!['server1', 'server2'].includes(serverChoice)) {
+    return res.status(400).json({ error: 'Server tidak valid.' });
   }
 
-  const validServers = ['server1', 'server2'];
-  if (!validServers.includes(serverChoice)) {
-    return res.status(400).json({ error: 'Server tidak valid. Pilih: server1 atau server2.' });
-  }
-
-  console.log(`[Auto-Generate] ========================================`);
-  console.log(`[Auto-Generate] 📌 Server dipilih: ${serverChoice} (${SERVERS[serverChoice].name})`);
-  console.log(`[Auto-Generate] ========================================`);
+  console.log(`[Auto-Generate] Server dipilih: ${serverChoice}`);
 
   try {
-    let result;
-
-    switch (serverChoice) {
-      case 'server1':
-        result = await generateFromServer1(deviceChoice, 3);
-        break;
-      case 'server2':
-        result = await generateFromServer2();
-        break;
-      default:
-        throw new Error('Server tidak dikenal');
-    }
-
-    console.log(`[Auto-Generate] ✅ Berhasil! Source: ${result.source}`);
-    return res.status(200).json({
-      success: true,
-      url: result.url,
-      expiry: result.expiry,
-      profile: result.profile,
-      device: result.device,
-      source: result.source,
-      server: serverChoice,
-    });
-  } catch (error) {
-    console.log(`[Auto-Generate] ❌ Error di ${serverChoice}: ${error.message}`);
-
-    // Jika server 1 gagal, coba fallback ke server 2
     if (serverChoice === 'server1') {
+      const result = await generateFromServer1();
+      return res.status(200).json({ success: true, ...result, server: 'server1' });
+    } else {
+      const result = await generateFromServer2();
+      return res.status(200).json({ success: true, ...result, server: 'server2' });
+    }
+  } catch (error) {
+    // Jika server 1 gagal, fallback ke server 2
+    if (serverChoice === 'server1') {
+      console.log('[Auto-Generate] Server 1 gagal, fallback ke Server 2');
       try {
-        console.log(`[Auto-Generate] 🔄 Mencoba fallback ke Server 2 (Lokal)...`);
         const fallbackResult = await generateFromServer2();
-        console.log(`[Auto-Generate] ✅ Fallback berhasil!`);
         return res.status(200).json({
           success: true,
-          url: fallbackResult.url,
-          expiry: fallbackResult.expiry,
-          profile: fallbackResult.profile,
-          device: fallbackResult.device,
-          source: fallbackResult.source,
+          ...fallbackResult,
           server: 'server2',
           fallback: true,
-          originalServer: 'server1',
+          reason: 'Server 1 sedang bermasalah. Menggunakan Server 2 (Lokal).',
         });
       } catch (fallbackError) {
-        console.log(`[Auto-Generate] ❌ Fallback Server 2 gagal: ${fallbackError.message}`);
+        return res.status(503).json({
+          success: false,
+          error: 'Server 1 dan Server 2 gagal.',
+          details: fallbackError.message,
+        });
       }
     }
 
     return res.status(503).json({
       success: false,
-      error: 'Semua server gagal. Coba lagi nanti.',
-      details: error.message,
-      server: serverChoice,
+      error: error.message || 'Terjadi kesalahan.',
     });
   }
 }
