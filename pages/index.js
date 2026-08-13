@@ -212,8 +212,8 @@ export default function Home() {
                 disabled={autoGenLoading}
                 className="server-select"
               >
-                <option value="server1">Server 1 (Online + TV)</option>
-                <option value="server2">Server 2 (Lokal)</option>
+                <option value="server1">Server 1</option>
+                <option value="server2">Server 2</option>
               </select>
             </div>
 
