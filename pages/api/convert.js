@@ -1,10 +1,5 @@
 // pages/api/convert.js
-// Endpoint untuk mengonversi cookie Netflix menjadi NFToken
-// Mendukung 4 format input:
-// 1. JSON Array
-// 2. JSON Object
-// 3. Raw String
-// 4. Netscape (.txt) — otomatis dikonversi
+// Support: JSON Array, JSON Object, Raw String, Netscape (.txt)
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -18,30 +13,29 @@ export default async function handler(req, res) {
   }
 
   // =====================================================
-  // PARSING COOKIE (AUTO DETECT)
+  // PARSING COOKIE (TANPA DECODE)
   // =====================================================
   const parsedCookie = parseCookieInput(cookie);
 
-  // Jika parsing menghasilkan string kosong atau null
+  // Debug: jika parsing menghasilkan string kosong
   if (!parsedCookie) {
     return res.status(400).json({
       error: 'Gagal parsing cookie',
       hint: 'Pastikan format cookie benar (JSON Array, JSON Object, Raw String, atau Netscape .txt)',
-      rawLength: cookie.length,
-      firstChars: cookie.slice(0, 200),
+      rawPreview: cookie.slice(0, 200),
     });
   }
 
-  // Validasi: pastikan ada NetflixId
+  // Validasi: harus mengandung NetflixId
   if (!parsedCookie.includes('NetflixId=')) {
     return res.status(400).json({
       error: 'Cookie tidak valid: tidak ditemukan NetflixId setelah parsing.',
-      parsedSample: parsedCookie.slice(0, 300) + '...',
-      hint: 'Pastikan cookie berisi NetflixId. Support format: JSON Array, JSON Object, Raw String, atau Netscape .txt',
+      parsedPreview: parsedCookie.slice(0, 300) + '...',
+      hint: 'Pastikan cookie berisi NetflixId.',
     });
   }
 
-  console.log('[Convert] ✅ Cookie berhasil diparse, panjang:', parsedCookie.length);
+  console.log('[Convert] Cookie parsed, length:', parsedCookie.length);
 
   // =====================================================
   // KIRIM REQUEST KE API NETFLIX
@@ -203,11 +197,10 @@ export default async function handler(req, res) {
 }
 
 // =====================================================
-// FUNGSI PARSING COOKIE (AUTO DETECT + CONVERT)
+// FUNGSI PARSING COOKIE (TANPA DECODE)
 // =====================================================
 function parseCookieInput(rawInput) {
   const trimmed = rawInput.trim();
-  if (!trimmed) return null;
 
   // ===== 1. COBA PARSE SEBAGAI JSON =====
   try {
@@ -243,37 +236,27 @@ function parseCookieInput(rawInput) {
   }
 
   // ===== 3. DETEKSI NETSCAPE (.txt) =====
-  // Split baris, trim, filter kosong
   const lines = trimmed
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
-  // Cek apakah ini format Netscape: ada baris yang mengandung tab dan .netflix.com
-  const isNetscape = lines.some((line) => {
-    const parts = line.split(/\s+/); // split by whitespace
-    return parts.length >= 7 && parts[0] === '.netflix.com';
-  });
+  const isNetscape = lines.some(
+    (line) => line.includes('\t') && line.includes('.netflix.com')
+  );
 
   if (isNetscape) {
-    console.log('[Parser] ✅ Netscape (.txt) format detected');
+    console.log('[Parser] ✅ Netscape (.txt) format');
     const cookieParts = [];
     const requiredKeys = ['NetflixId', 'SecureNetflixId', 'nfvdid', 'OptanonConsent'];
 
     for (const line of lines) {
-      // Split by tab atau multiple whitespace
-      const fields = line.split(/\t+/);
+      const fields = line.split('\t');
       if (fields.length >= 7) {
         const name = fields[5].trim();
-        let value = fields[6].trim();
+        const value = fields[6].trim();
 
-        // URL-decode nilai (jika ada %)
-        try {
-          if (value.includes('%')) {
-            value = decodeURIComponent(value);
-          }
-        } catch (_) {}
-
+        // 🔥 TIDAK DI-DECODE! Biarkan apa adanya
         if (requiredKeys.includes(name) && value) {
           cookieParts.push(`${name}=${value}`);
         }
@@ -281,9 +264,8 @@ function parseCookieInput(rawInput) {
     }
 
     if (cookieParts.length > 0) {
-      const result = cookieParts.join('; ');
       console.log('[Parser] ✅ Netscape parsed, keys:', cookieParts.map(p => p.split('=')[0]).join(', '));
-      return result;
+      return cookieParts.join('; ');
     } else {
       console.log('[Parser] ⚠️ Netscape detected but no required keys found');
     }
