@@ -1,22 +1,16 @@
 // pages/api/convert.js
 // Endpoint untuk mengonversi cookie Netflix menjadi NFToken
 // Mendukung 4 format input:
-// 1. JSON Array: [{"name":"NetflixId","value":"xxx"}, ...]
-// 2. JSON Object: {"NetflixId":"yyy", "SecureNetflixId":"www"}
-// 3. Raw String: NetflixId=xxx; SecureNetflixId=yyy; ...
-// 4. Netscape (.txt): baris dengan tab-separated
+// 1. JSON Array
+// 2. JSON Object
+// 3. Raw String
+// 4. Netscape (.txt)
 
 export default async function handler(req, res) {
-  // =====================================================
-  // 1. VALIDASI METHOD
-  // =====================================================
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // =====================================================
-  // 2. AMBIL DAN VALIDASI INPUT
-  // =====================================================
   let { cookie } = req.body;
 
   if (!cookie || typeof cookie !== 'string') {
@@ -24,14 +18,24 @@ export default async function handler(req, res) {
   }
 
   // =====================================================
-  // 3. PARSING COOKIE (MENDETEKSI FORMAT)
+  // PARSING COOKIE
   // =====================================================
   const parsedCookie = parseCookieInput(cookie);
 
-  // Validasi setelah parsing
-  if (!parsedCookie || !parsedCookie.includes('NetflixId=')) {
+  // 🔍 Debug: jika parsing menghasilkan string kosong, kirim info
+  if (!parsedCookie) {
+    return res.status(400).json({
+      error: 'Gagal parsing cookie',
+      hint: 'Pastikan format cookie benar (JSON Array, JSON Object, Raw String, atau Netscape .txt)',
+      rawLength: cookie.length,
+      firstChars: cookie.slice(0, 200),
+    });
+  }
+
+  if (!parsedCookie.includes('NetflixId=')) {
     return res.status(400).json({
       error: 'Cookie tidak valid: tidak ditemukan NetflixId setelah parsing.',
+      parsedSample: parsedCookie.slice(0, 300) + '...',
       hint: 'Pastikan cookie berisi NetflixId. Support format: JSON Array, JSON Object, Raw String, atau Netscape .txt',
     });
   }
@@ -39,7 +43,7 @@ export default async function handler(req, res) {
   console.log('[Convert] Cookie berhasil diparse, panjang:', parsedCookie.length);
 
   // =====================================================
-  // 4. KIRIM REQUEST KE API NETFLIX
+  // KIRIM REQUEST KE API NETFLIX (sama seperti sebelumnya)
   // =====================================================
   const API_URL = 'https://ios.prod.ftl.netflix.com/iosui/user/15.48';
   const QUERY_PARAMS = {
@@ -104,9 +108,6 @@ export default async function handler(req, res) {
   };
 
   try {
-    // =====================================================
-    // 5. DAPATKAN TOKEN
-    // =====================================================
     const response = await fetch(url.toString(), {
       method: 'GET',
       headers,
@@ -137,9 +138,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // =====================================================
-    // 6. AMBIL INFORMASI PROFIL (COUNTRY, DLL)
-    // =====================================================
+    // Ambil info profil
     let profileInfo = null;
     try {
       const profileUrl = new URL('https://ios.prod.ftl.netflix.com/iosui/profiles/current');
@@ -170,13 +169,8 @@ export default async function handler(req, res) {
           };
         }
       }
-    } catch (_) {
-      // Abaikan jika gagal ambil profil
-    }
+    } catch (_) {}
 
-    // =====================================================
-    // 7. FORMAT EXPIRY
-    // =====================================================
     let expiryDate = null;
     if (expires) {
       if (typeof expires === 'number' && expires.toString().length === 13) {
@@ -188,9 +182,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // =====================================================
-    // 8. KIRIM RESPONSE
-    // =====================================================
     return res.status(200).json({
       success: true,
       token,
@@ -211,80 +202,88 @@ export default async function handler(req, res) {
 }
 
 // =====================================================
-// FUNGSI PARSING COOKIE (MENDETEKSI FORMAT)
+// FUNGSI PARSING COOKIE (DIPERBAIKI)
 // =====================================================
 function parseCookieInput(rawInput) {
-  // Bersihkan input
   const trimmed = rawInput.trim();
 
   // ===== 1. COBA PARSE SEBAGAI JSON =====
   try {
     const parsed = JSON.parse(trimmed);
 
-    // 1a. JSON Array: [{"name":"NetflixId","value":"xxx"}, ...]
     if (Array.isArray(parsed)) {
       const cookieParts = parsed
         .filter((item) => item.name && item.value)
         .map((item) => `${item.name}=${item.value}`);
       if (cookieParts.length > 0) {
-        console.log('[Parser] ✅ Detected JSON Array format');
+        console.log('[Parser] ✅ JSON Array');
         return cookieParts.join('; ');
       }
     }
 
-    // 1b. JSON Object: {"NetflixId":"xxx", "SecureNetflixId":"yyy"}
     if (typeof parsed === 'object' && parsed !== null) {
       const cookieParts = Object.entries(parsed)
-        .filter(([key]) => key.includes('NetflixId') || key.includes('SecureNetflixId') || key.includes('nfvdid') || key.includes('OptanonConsent'))
+        .filter(([key]) =>
+          ['NetflixId', 'SecureNetflixId', 'nfvdid', 'OptanonConsent'].includes(key)
+        )
         .map(([key, value]) => `${key}=${value}`);
       if (cookieParts.length > 0) {
-        console.log('[Parser] ✅ Detected JSON Object format');
+        console.log('[Parser] ✅ JSON Object');
         return cookieParts.join('; ');
       }
     }
-  } catch (_) {
-    // Bukan JSON, lanjut ke step berikutnya
-  }
+  } catch (_) {}
 
-  // ===== 2. CEK APAKAH SUDAH FORMAT HTTP STRING =====
+  // ===== 2. CEK RAW HTTP STRING =====
   if (trimmed.includes('NetflixId=') || trimmed.includes('SecureNetflixId=')) {
-    console.log('[Parser] ✅ Detected Raw HTTP String format');
+    console.log('[Parser] ✅ Raw HTTP String');
     return trimmed;
   }
 
-  // ===== 3. COBA DETEKSI FORMAT NETSCAPE (.txt) =====
-  const lines = trimmed.split('\n').filter((line) => line.trim() !== '');
-  if (lines.length > 0 && lines[0].includes('\t') && lines[0].includes('.netflix.com')) {
-    console.log('[Parser] ✅ Detected Netscape (.txt) format');
+  // ===== 3. DETEKSI NETSCAPE (.txt) =====
+  // Split by newline, trim each line, filter empty
+  const lines = trimmed
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  // Cek apakah ada baris yang mengandung tab dan .netflix.com
+  const isNetscape = lines.some((line) => line.includes('\t') && line.includes('.netflix.com'));
+
+  if (isNetscape) {
+    console.log('[Parser] ✅ Netscape (.txt) format');
     const cookieParts = [];
     const requiredKeys = ['NetflixId', 'SecureNetflixId', 'nfvdid', 'OptanonConsent'];
 
     for (const line of lines) {
+      // Split by tab
       const fields = line.split('\t');
       if (fields.length >= 7) {
         const name = fields[5].trim();
         let value = fields[6].trim();
-        
-        // 🔥 PERBAIKAN: URL-decode nilai cookie
+
+        // URL-decode nilai
         try {
           value = decodeURIComponent(value);
         } catch (_) {
-          // Jika gagal decode, biarkan apa adanya
+          // Jika gagal, biarkan asli
         }
-        
-        if (requiredKeys.includes(name)) {
+
+        if (requiredKeys.includes(name) && value) {
           cookieParts.push(`${name}=${value}`);
         }
       }
     }
 
     if (cookieParts.length > 0) {
-      console.log('[Parser] ✅ Netscape parsed with URL decoding');
+      console.log('[Parser] ✅ Netscape parsed, keys:', cookieParts.map(p => p.split('=')[0]).join(', '));
       return cookieParts.join('; ');
+    } else {
+      console.log('[Parser] ⚠️ Netscape detected but no required keys found');
     }
   }
 
-  // ===== 4. JIKA SEMUA GAGAL, RETURN INPUT APA ADANYA =====
+  // ===== 4. FALLBACK =====
   console.log('[Parser] ⚠️ Format tidak dikenali, return raw input');
   return trimmed;
 }
