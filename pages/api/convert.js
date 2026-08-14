@@ -1,17 +1,46 @@
+// pages/api/convert.js
+// Endpoint untuk mengonversi cookie Netflix menjadi NFToken
+// Mendukung 4 format input:
+// 1. JSON Array: [{"name":"NetflixId","value":"xxx"}, ...]
+// 2. JSON Object: {"NetflixId":"yyy", "SecureNetflixId":"www"}
+// 3. Raw String: NetflixId=xxx; SecureNetflixId=yyy; ...
+// 4. Netscape (.txt): baris dengan tab-separated
+
 export default async function handler(req, res) {
+  // =====================================================
+  // 1. VALIDASI METHOD
+  // =====================================================
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { cookie } = req.body;
+  // =====================================================
+  // 2. AMBIL DAN VALIDASI INPUT
+  // =====================================================
+  let { cookie } = req.body;
+
   if (!cookie || typeof cookie !== 'string') {
     return res.status(400).json({ error: 'Cookie string is required' });
   }
 
-  if (!cookie.includes('NetflixId=')) {
-    return res.status(400).json({ error: 'Cookie tidak valid: tidak ditemukan NetflixId' });
+  // =====================================================
+  // 3. PARSING COOKIE (MENDETEKSI FORMAT)
+  // =====================================================
+  const parsedCookie = parseCookieInput(cookie);
+
+  // Validasi setelah parsing
+  if (!parsedCookie || !parsedCookie.includes('NetflixId=')) {
+    return res.status(400).json({
+      error: 'Cookie tidak valid: tidak ditemukan NetflixId setelah parsing.',
+      hint: 'Pastikan cookie berisi NetflixId. Support format: JSON Array, JSON Object, Raw String, atau Netscape .txt',
+    });
   }
 
+  console.log('[Convert] Cookie berhasil diparse, panjang:', parsedCookie.length);
+
+  // =====================================================
+  // 4. KIRIM REQUEST KE API NETFLIX
+  // =====================================================
   const API_URL = 'https://ios.prod.ftl.netflix.com/iosui/user/15.48';
   const QUERY_PARAMS = {
     appVersion: '15.48.1',
@@ -71,16 +100,30 @@ export default async function handler(req, res) {
 
   const headers = {
     ...BASE_HEADERS,
-    Cookie: cookie.trim(),
+    Cookie: parsedCookie,
   };
 
   try {
-    // 1. Dapatkan token
-    const response = await fetch(url.toString(), { method: 'GET', headers });
+    // =====================================================
+    // 5. DAPATKAN TOKEN
+    // =====================================================
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers,
+    });
+
     if (!response.ok) {
-      const errorText = await response.text();
-      return res.status(response.status).json({ error: `HTTP Error ${response.status}`, detail: errorText });
+      let errorText = await response.text();
+      let errorJson = null;
+      try {
+        errorJson = JSON.parse(errorText);
+      } catch (_) {}
+      return res.status(response.status).json({
+        error: `HTTP Error ${response.status}`,
+        detail: errorJson || errorText,
+      });
     }
+
     const data = await response.json();
     const tokenData = data?.value?.account?.token?.default || {};
     const token = tokenData.token;
@@ -89,12 +132,14 @@ export default async function handler(req, res) {
     if (!token) {
       return res.status(200).json({
         success: false,
-        message: 'Token tidak ditemukan. Cookie mungkin sudah kadaluarsa.',
+        message: 'Token tidak ditemukan. Cookie mungkin sudah kadaluarsa atau tidak valid.',
         debug: data,
       });
     }
 
-    // 2. Ambil informasi profil (untuk mendapatkan country)
+    // =====================================================
+    // 6. AMBIL INFORMASI PROFIL (COUNTRY, DLL)
+    // =====================================================
     let profileInfo = null;
     try {
       const profileUrl = new URL('https://ios.prod.ftl.netflix.com/iosui/profiles/current');
@@ -107,9 +152,12 @@ export default async function handler(req, res) {
 
       const profileHeaders = {
         ...BASE_HEADERS,
-        Cookie: cookie.trim(),
+        Cookie: parsedCookie,
       };
-      const profileRes = await fetch(profileUrl.toString(), { method: 'GET', headers: profileHeaders });
+      const profileRes = await fetch(profileUrl.toString(), {
+        method: 'GET',
+        headers: profileHeaders,
+      });
       if (profileRes.ok) {
         const profileData = await profileRes.json();
         const account = profileData?.value?.account;
@@ -126,7 +174,9 @@ export default async function handler(req, res) {
       // Abaikan jika gagal ambil profil
     }
 
-    // Format expiry
+    // =====================================================
+    // 7. FORMAT EXPIRY
+    // =====================================================
     let expiryDate = null;
     if (expires) {
       if (typeof expires === 'number' && expires.toString().length === 13) {
@@ -138,15 +188,94 @@ export default async function handler(req, res) {
       }
     }
 
+    // =====================================================
+    // 8. KIRIM RESPONSE
+    // =====================================================
     return res.status(200).json({
       success: true,
       token,
       url: `https://netflix.com/?nftoken=${token}`,
       expires: expiryDate ? expiryDate.toISOString() : null,
-      expiryHuman: expiryDate ? expiryDate.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : 'Tidak diketahui',
+      expiryHuman: expiryDate
+        ? expiryDate.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+        : 'Tidak diketahui',
       profile: profileInfo,
     });
   } catch (error) {
-    return res.status(500).json({ error: 'Terjadi kesalahan server', detail: error.message });
+    console.error('[Convert] Error:', error);
+    return res.status(500).json({
+      error: 'Terjadi kesalahan server',
+      detail: error.message,
+    });
   }
+}
+
+// =====================================================
+// FUNGSI PARSING COOKIE (MENDETEKSI FORMAT)
+// =====================================================
+function parseCookieInput(rawInput) {
+  // Bersihkan input
+  const trimmed = rawInput.trim();
+
+  // ===== 1. COBA PARSE SEBAGAI JSON =====
+  try {
+    const parsed = JSON.parse(trimmed);
+
+    // 1a. JSON Array: [{"name":"NetflixId","value":"xxx"}, ...]
+    if (Array.isArray(parsed)) {
+      const cookieParts = parsed
+        .filter((item) => item.name && item.value)
+        .map((item) => `${item.name}=${item.value}`);
+      if (cookieParts.length > 0) {
+        console.log('[Parser] ✅ Detected JSON Array format');
+        return cookieParts.join('; ');
+      }
+    }
+
+    // 1b. JSON Object: {"NetflixId":"xxx", "SecureNetflixId":"yyy"}
+    if (typeof parsed === 'object' && parsed !== null) {
+      const cookieParts = Object.entries(parsed)
+        .filter(([key]) => key.includes('NetflixId') || key.includes('SecureNetflixId') || key.includes('nfvdid') || key.includes('OptanonConsent'))
+        .map(([key, value]) => `${key}=${value}`);
+      if (cookieParts.length > 0) {
+        console.log('[Parser] ✅ Detected JSON Object format');
+        return cookieParts.join('; ');
+      }
+    }
+  } catch (_) {
+    // Bukan JSON, lanjut ke step berikutnya
+  }
+
+  // ===== 2. CEK APAKAH SUDAH FORMAT HTTP STRING =====
+  if (trimmed.includes('NetflixId=') || trimmed.includes('SecureNetflixId=')) {
+    console.log('[Parser] ✅ Detected Raw HTTP String format');
+    return trimmed;
+  }
+
+  // ===== 3. COBA DETEKSI FORMAT NETSCAPE (.txt) =====
+  const lines = trimmed.split('\n').filter((line) => line.trim() !== '');
+  if (lines.length > 0 && lines[0].includes('\t') && lines[0].includes('.netflix.com')) {
+    console.log('[Parser] ✅ Detected Netscape (.txt) format');
+    const cookieParts = [];
+    const requiredKeys = ['NetflixId', 'SecureNetflixId', 'nfvdid', 'OptanonConsent'];
+
+    for (const line of lines) {
+      const fields = line.split('\t');
+      if (fields.length >= 7) {
+        const name = fields[5].trim();
+        const value = fields[6].trim();
+        if (requiredKeys.includes(name)) {
+          cookieParts.push(`${name}=${value}`);
+        }
+      }
+    }
+
+    if (cookieParts.length > 0) {
+      return cookieParts.join('; ');
+    }
+  }
+
+  // ===== 4. JIKA SEMUA GAGAL, RETURN INPUT APA ADANYA =====
+  console.log('[Parser] ⚠️ Format tidak dikenali, return raw input');
+  return trimmed;
 }
