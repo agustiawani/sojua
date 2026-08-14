@@ -263,7 +263,15 @@ function parseCookieInput(rawInput) {
       const fields = line.split('\t');
       if (fields.length >= 7) {
         const name = fields[5].trim();
-        const value = fields[6].trim();
+        let value = fields[6].trim();
+        
+        // 🔥 PERBAIKAN: URL-decode nilai cookie
+        try {
+          value = decodeURIComponent(value);
+        } catch (_) {
+          // Jika gagal decode, biarkan apa adanya
+        }
+        
         if (requiredKeys.includes(name)) {
           cookieParts.push(`${name}=${value}`);
         }
@@ -271,6 +279,7 @@ function parseCookieInput(rawInput) {
     }
 
     if (cookieParts.length > 0) {
+      console.log('[Parser] ✅ Netscape parsed with URL decoding');
       return cookieParts.join('; ');
     }
   }
