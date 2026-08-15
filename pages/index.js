@@ -1,5 +1,5 @@
 // pages/index.js
-// Full version: Auto Generate, Converter, Netscape Converter
+// Final version: Auto Generate (tanpa pilihan server) + Converter + Netscape Converter
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
@@ -11,18 +11,20 @@ export default function Home() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
 
-  // ===== STATE CONVERTER =====
+  // ===== STATE UNTUK CONVERTER =====
   const [cookieInput, setCookieInput] = useState('');
+
+  // ===== STATE UNTUK SAVED COOKIES (Converter) =====
   const [savedCookies, setSavedCookies] = useState([]);
   const [newCookieName, setNewCookieName] = useState('');
 
-  // ===== STATE AUTO GENERATE =====
+  // ===== STATE UNTUK AUTO GENERATE =====
   const [autoGenLoading, setAutoGenLoading] = useState(false);
   const [autoGenResult, setAutoGenResult] = useState(null);
   const [autoGenError, setAutoGenError] = useState('');
-  const [selectedServer, setSelectedServer] = useState('server1');
+  const [availableCookies, setAvailableCookies] = useState(0);
 
-  // ===== STATE NETSCAPE CONVERTER =====
+  // ===== STATE UNTUK NETSCAPE CONVERTER =====
   const [netscapeInput, setNetscapeInput] = useState('');
   const [netscapeLoading, setNetscapeLoading] = useState(false);
   const [netscapeError, setNetscapeError] = useState('');
@@ -30,7 +32,7 @@ export default function Home() {
   const [tokenLoading, setTokenLoading] = useState(false);
   const [tokenResult, setTokenResult] = useState(null);
 
-  // ===== LOAD DARI LOCALSTORAGE =====
+  // ===== LOAD DARI LOCALSTORAGE (Converter) =====
   useEffect(() => {
     const stored = localStorage.getItem('netflix_cookies');
     if (stored) {
@@ -76,7 +78,7 @@ export default function Home() {
     }
   };
 
-  // ===== FUNGSI PANGGIL API =====
+  // ===== FUNGSI PANGGIL API CONVERT =====
   const callConvertApi = async (cookieStr) => {
     try {
       const res = await fetch('/api/convert', {
@@ -102,12 +104,12 @@ export default function Home() {
     setResult(null);
     setError('');
     setLoading(true);
-    const res = await callConvertApi(cookieInput);
+    const result = await callConvertApi(cookieInput);
     setLoading(false);
-    if (res.success) {
-      setResult(res.data);
+    if (result.success) {
+      setResult(result.data);
     } else {
-      setError(res.data?.error || 'Gagal mengonversi cookie');
+      setError(result.data?.error || 'Gagal mengonversi cookie');
     }
   };
 
@@ -120,13 +122,14 @@ export default function Home() {
       const res = await fetch('/api/auto-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ server: selectedServer }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
         setAutoGenResult(data);
+        setAvailableCookies(data.available || 0);
       } else {
         setAutoGenError(data.error || 'Gagal menghasilkan link.');
+        setAvailableCookies(data.available || 0);
       }
     } catch (_) {
       setAutoGenError('Terjadi kesalahan jaringan.');
@@ -223,28 +226,20 @@ export default function Home() {
         </div>
 
         {/* ============================================ */}
-        {/* TAB: AUTO GENERATE */}
+        {/* TAB: AUTO GENERATE (Tanpa pilihan server) */}
         {/* ============================================ */}
         {activeTab === 'auto' && (
           <div className="tab-content">
             <div className="section-label">⚡ GENERATE LINK INSTAN</div>
             <p className="hint">
-              Pilih server sumber data, lalu klik tombol di bawah untuk mendapatkan link NFToken.
+              Klik tombol di bawah untuk mendapatkan link NFToken dari cookie yang tersedia.
             </p>
 
-            <div className="server-selector">
-              <label htmlFor="serverSelect">Pilih Server:</label>
-              <select
-                id="serverSelect"
-                value={selectedServer}
-                onChange={(e) => setSelectedServer(e.target.value)}
-                disabled={autoGenLoading}
-                className="server-select"
-              >
-                <option value="server1">Server 1 (Online + TV)</option>
-                <option value="server2">Server 2 (Lokal)</option>
-              </select>
-            </div>
+            {availableCookies > 0 && (
+              <div className="cookie-stats">
+                🍪 <strong>{availableCookies}</strong> cookie aktif tersedia
+              </div>
+            )}
 
             <div className="auto-generate-area">
               <button
@@ -261,13 +256,7 @@ export default function Home() {
               <div className="result-box">
                 <div className="result-header">
                   <span className="result-badge">✅ SUKSES!</span>
-                  <span className="result-source">
-                    Sumber: {autoGenResult.source || 'Tidak diketahui'}
-                    {autoGenResult.fallback && ' (Fallback)'}
-                  </span>
-                  {autoGenResult.reason && (
-                    <div className="result-reason">⚠️ {autoGenResult.reason}</div>
-                  )}
+                  <span className="result-source">Sumber: Lokal (cookies.json)</span>
                 </div>
 
                 <div className="result-item">
@@ -276,20 +265,15 @@ export default function Home() {
                     <a href={autoGenResult.url} target="_blank" rel="noopener noreferrer" className="result-link">
                       {autoGenResult.url}
                     </a>
-                    <button onClick={() => copyToClipboard(autoGenResult.url, 'Link')} className="copy-btn">📋</button>
+                    <button onClick={() => copyToClipboard(autoGenResult.url, 'Link')} className="copy-btn">
+                      📋
+                    </button>
                   </div>
                 </div>
 
                 <div className="result-item">
                   <span className="result-label">⏰ KADALUARSA</span>
                   <span className="result-value">{autoGenResult.expiry}</span>
-                </div>
-
-                <div className="result-item">
-                  <span className="result-label">📱 DEVICE</span>
-                  <span className="result-value" style={{ textTransform: 'capitalize' }}>
-                    {autoGenResult.device || 'Random'}
-                  </span>
                 </div>
 
                 {autoGenResult.profile && (
@@ -304,28 +288,6 @@ export default function Home() {
                         <span className="profile-label">📦 Paket</span>
                         <span className="profile-value">{autoGenResult.profile.plan || 'Tidak diketahui'}</span>
                       </div>
-                      <div className="profile-item">
-                        <span className="profile-label">📧 Email</span>
-                        <span className="profile-value">{autoGenResult.profile.email || 'Tidak diketahui'}</span>
-                      </div>
-                      {autoGenResult.profile.profileName && (
-                        <div className="profile-item">
-                          <span className="profile-label">👤 Profil</span>
-                          <span className="profile-value">{autoGenResult.profile.profileName}</span>
-                        </div>
-                      )}
-                      {autoGenResult.profile.lastActive && (
-                        <div className="profile-item">
-                          <span className="profile-label">🕐 Aktif Terakhir</span>
-                          <span className="profile-value">{autoGenResult.profile.lastActive}</span>
-                        </div>
-                      )}
-                      {autoGenResult.profile.billingDate && (
-                        <div className="profile-item">
-                          <span className="profile-label">📅 Tagihan</span>
-                          <span className="profile-value">{autoGenResult.profile.billingDate}</span>
-                        </div>
-                      )}
                     </div>
                   </>
                 )}
@@ -335,7 +297,7 @@ export default function Home() {
         )}
 
         {/* ============================================ */}
-        {/* TAB: CONVERTER */}
+        {/* TAB: CONVERTER (Manual) */}
         {/* ============================================ */}
         {activeTab === 'converter' && (
           <div className="tab-content">
@@ -350,8 +312,12 @@ export default function Home() {
                       <span className="saved-name" onClick={() => setCookieInput(item.cookie)}>
                         {item.name}
                       </span>
-                      <button onClick={() => setCookieInput(item.cookie)} className="btn-use" title="Gunakan">📋</button>
-                      <button onClick={() => handleDeleteCookie(item.id)} className="btn-delete" title="Hapus">✕</button>
+                      <button onClick={() => setCookieInput(item.cookie)} className="btn-use" title="Gunakan">
+                        📋
+                      </button>
+                      <button onClick={() => handleDeleteCookie(item.id)} className="btn-delete" title="Hapus">
+                        ✕
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -410,7 +376,9 @@ export default function Home() {
                     <a href={result.url} target="_blank" rel="noopener noreferrer" className="result-link">
                       {result.url}
                     </a>
-                    <button onClick={() => copyToClipboard(result.url, 'Link')} className="copy-btn">📋</button>
+                    <button onClick={() => copyToClipboard(result.url, 'Link')} className="copy-btn">
+                      📋
+                    </button>
                   </div>
                 </div>
 
@@ -423,7 +391,9 @@ export default function Home() {
                   <span className="result-label">🔑 TOKEN</span>
                   <div className="result-value-wrap">
                     <code className="result-token">{result.token}</code>
-                    <button onClick={() => copyToClipboard(result.token, 'Token')} className="copy-btn">📋</button>
+                    <button onClick={() => copyToClipboard(result.token, 'Token')} className="copy-btn">
+                      📋
+                    </button>
                   </div>
                 </div>
 
@@ -460,144 +430,105 @@ export default function Home() {
         {/* ============================================ */}
         {activeTab === 'netscape' && (
           <div className="tab-content">
-            <div className="section-label">📄 KONVERSI NETSCAPE (.txt)</div>
+            <div className="section-label">📄 NETSCAPE TO RAW CONVERTER</div>
             <p className="hint">
-              Tempelkan cookie format Netscape (tab-separated) di bawah, lalu klik "Parse ke Raw" untuk mengubahnya menjadi raw cookie, kemudian "Generate NFToken".
+              Tempelkan cookie format Netscape (tab-separated) di bawah, lalu klik "Parse ke Raw".
             </p>
 
-            <textarea
-              rows={8}
-              placeholder="Tempel Netscape di sini...&#10;Contoh:&#10;.netflix.com\tTRUE\t/\tTRUE\t0\tNetflixId\tv%3D3%26ct%3D..."
-              value={netscapeInput}
-              onChange={(e) => setNetscapeInput(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '16px 18px',
-                fontSize: '13px',
-                fontFamily: 'monospace',
-                background: 'rgba(255,255,255,0.04)',
-                border: '1.5px solid rgba(255,255,255,0.06)',
-                borderRadius: '16px',
-                color: '#eaeef2',
-                resize: 'vertical',
-                minHeight: '120px',
-                lineHeight: '1.7',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-all',
-              }}
-            />
-
-            <div className="netscape-actions">
-              <button
-                onClick={handleParseNetscape}
-                disabled={netscapeLoading || !netscapeInput.trim()}
-                className="btn-parse"
+            <div className="netscape-converter">
+              <textarea
+                rows={6}
+                placeholder="Tempel Netscape di sini..."
+                value={netscapeInput}
+                onChange={(e) => setNetscapeInput(e.target.value)}
                 style={{
-                  padding: '12px 24px',
-                  background: '#3b82f6',
-                  border: 'none',
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '13px',
+                  fontFamily: 'monospace',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.06)',
                   borderRadius: '12px',
-                  color: '#fff',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
+                  color: '#eaeef2',
+                  resize: 'vertical',
                 }}
-              >
-                {netscapeLoading ? '⏳ Parsing...' : '🔧 Parse ke Raw'}
-              </button>
+              />
 
-              {rawCookieResult && (
+              <div className="netscape-actions">
                 <button
-                  onClick={handleGenerateFromRaw}
-                  disabled={tokenLoading}
-                  className="btn-generate-raw"
-                  style={{
-                    padding: '12px 24px',
-                    background: '#e50914',
-                    border: 'none',
-                    borderRadius: '12px',
-                    color: '#fff',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                  }}
+                  onClick={handleParseNetscape}
+                  disabled={netscapeLoading}
+                  className="btn-parse"
                 >
-                  {tokenLoading ? '⏳ Generating...' : '⚡ Generate NFToken'}
+                  {netscapeLoading ? '⏳ Parsing...' : '🔧 Parse ke Raw'}
                 </button>
-              )}
-            </div>
-
-            {netscapeError && (
-              <div className="error-box">
-                <strong>❌ Error:</strong> {netscapeError}
-              </div>
-            )}
-
-            {rawCookieResult && (
-              <div className="raw-cookie-display">
-                <div className="section-label" style={{ marginBottom: '4px' }}>✅ Raw Cookie:</div>
-                <code
-                  style={{
-                    display: 'block',
-                    wordBreak: 'break-all',
-                    fontSize: '12px',
-                    color: '#eaeef2',
-                    background: 'rgba(0,0,0,0.2)',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    marginTop: '4px',
-                    maxHeight: '150px',
-                    overflow: 'auto',
-                    border: '1px solid rgba(255,255,255,0.04)',
-                  }}
-                >
-                  {rawCookieResult}
-                </code>
-              </div>
-            )}
-
-            {tokenResult && (
-              <div className="result-box" style={{ marginTop: '16px' }}>
-                <div className="result-header">
-                  <span className="result-badge">✅ SUKSES!</span>
-                </div>
-
-                <div className="result-item">
-                  <span className="result-label">🔗 URL LOGIN</span>
-                  <div className="result-value-wrap">
-                    <a href={tokenResult.url} target="_blank" rel="noopener noreferrer" className="result-link">
-                      {tokenResult.url}
-                    </a>
-                    <button onClick={() => copyToClipboard(tokenResult.url, 'Link')} className="copy-btn">📋</button>
-                  </div>
-                </div>
-
-                <div className="result-item">
-                  <span className="result-label">⏰ KADALUARSA</span>
-                  <span className="result-value">{tokenResult.expiryHuman}</span>
-                </div>
-
-                {tokenResult.profile && (
-                  <>
-                    <div className="result-divider"></div>
-                    <div className="profile-grid">
-                      <div className="profile-item">
-                        <span className="profile-label">🌍 Negara</span>
-                        <span className="profile-value">{tokenResult.profile.country}</span>
-                      </div>
-                      <div className="profile-item">
-                        <span className="profile-label">📦 Paket</span>
-                        <span className="profile-value">{tokenResult.profile.plan}</span>
-                      </div>
-                      <div className="profile-item">
-                        <span className="profile-label">📧 Email</span>
-                        <span className="profile-value">{tokenResult.profile.email}</span>
-                      </div>
-                    </div>
-                  </>
+                {rawCookieResult && (
+                  <button
+                    onClick={handleGenerateFromRaw}
+                    disabled={tokenLoading}
+                    className="btn-generate-raw"
+                  >
+                    {tokenLoading ? '⏳ Generating...' : '⚡ Generate NFToken'}
+                  </button>
                 )}
               </div>
-            )}
+
+              {rawCookieResult && (
+                <div className="raw-result">
+                  <div className="raw-label">✅ Raw Cookie berhasil:</div>
+                  <code className="raw-cookie">{rawCookieResult}</code>
+                </div>
+              )}
+
+              {netscapeError && (
+                <div className="error-box">{netscapeError}</div>
+              )}
+
+              {tokenResult && (
+                <div className="result-box" style={{ marginTop: '16px' }}>
+                  <div className="result-header">
+                    <span className="result-badge">✅ SUKSES!</span>
+                  </div>
+
+                  <div className="result-item">
+                    <span className="result-label">🔗 URL LOGIN</span>
+                    <div className="result-value-wrap">
+                      <a href={tokenResult.url} target="_blank" rel="noopener noreferrer" className="result-link">
+                        {tokenResult.url}
+                      </a>
+                      <button onClick={() => copyToClipboard(tokenResult.url, 'Link')} className="copy-btn">
+                        📋
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="result-item">
+                    <span className="result-label">⏰ KADALUARSA</span>
+                    <span className="result-value">{tokenResult.expiryHuman}</span>
+                  </div>
+
+                  {tokenResult.profile && (
+                    <>
+                      <div className="result-divider"></div>
+                      <div className="profile-grid">
+                        <div className="profile-item">
+                          <span className="profile-label">🌍 Negara</span>
+                          <span className="profile-value">{tokenResult.profile.country}</span>
+                        </div>
+                        <div className="profile-item">
+                          <span className="profile-label">📦 Paket</span>
+                          <span className="profile-value">{tokenResult.profile.plan}</span>
+                        </div>
+                        <div className="profile-item">
+                          <span className="profile-label">📧 Email</span>
+                          <span className="profile-value">{tokenResult.profile.email}</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -727,63 +658,26 @@ export default function Home() {
           margin-top: -8px;
           font-family: monospace;
         }
-
-        /* ===== SERVER SELECTOR ===== */
-        .server-selector {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          background: rgba(255, 255, 255, 0.03);
-          padding: 12px 16px;
-          border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.04);
-          flex-wrap: wrap;
-        }
-        .server-selector label {
-          font-size: 13px;
-          font-weight: 500;
-          color: #9ca3af;
-        }
-        .server-select {
-          padding: 8px 14px;
-          border-radius: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(255, 255, 255, 0.04);
-          color: #eaeef2;
-          font-size: 13px;
-          font-weight: 500;
-          cursor: pointer;
-          outline: none;
-          transition: border-color 0.2s;
-          flex: 1;
-          min-width: 150px;
-        }
-        .server-select:focus {
-          border-color: #e50914;
-          box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.08);
-        }
-        .server-select:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-        .server-select option {
-          background: #1a1a2e;
-          color: #eaeef2;
-        }
-        .result-source {
-          font-size: 12px;
+        .empty-msg {
           color: #6b7280;
-          margin-left: 12px;
+          font-size: 14px;
+          text-align: center;
+          padding: 20px 0;
         }
-        .result-reason {
-          background: rgba(245, 158, 11, 0.1);
-          padding: 8px 12px;
-          border-radius: 8px;
-          border-left: 3px solid #f59e0b;
-          margin-top: 8px;
-          font-size: 13px;
-          color: #f59e0b;
-          width: 100%;
+
+        /* ===== COOKIE STATS ===== */
+        .cookie-stats {
+          background: rgba(16, 185, 129, 0.08);
+          padding: 10px 16px;
+          border-radius: 10px;
+          border: 1px solid rgba(16, 185, 129, 0.12);
+          text-align: center;
+          font-size: 14px;
+          color: #10b981;
+        }
+        .cookie-stats strong {
+          font-size: 18px;
+          font-weight: 700;
         }
 
         /* ===== AUTO GENERATE ===== */
@@ -955,6 +849,11 @@ export default function Home() {
           font-weight: 700;
           color: #10b981;
         }
+        .result-source {
+          font-size: 12px;
+          color: #6b7280;
+          margin-left: 12px;
+        }
         .result-item {
           display: flex;
           flex-direction: column;
@@ -1048,7 +947,7 @@ export default function Home() {
           color: #eaeef2;
         }
 
-        /* ===== SAVED SECTION ===== */
+        /* ===== SAVED SECTION (Converter) ===== */
         .saved-section {
           background: rgba(255, 255, 255, 0.03);
           border-radius: 12px;
@@ -1099,22 +998,75 @@ export default function Home() {
         }
 
         /* ===== NETSCAPE CONVERTER ===== */
+        .netscape-converter {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
         .netscape-actions {
           display: flex;
           gap: 10px;
           flex-wrap: wrap;
-          margin-top: 4px;
         }
-        .netscape-actions button:hover:not(:disabled) {
+        .btn-parse {
+          padding: 10px 20px;
+          background: #3b82f6;
+          border: none;
+          border-radius: 10px;
+          color: #fff;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .btn-parse:hover:not(:disabled) {
+          background: #2563eb;
           transform: scale(1.02);
         }
-        .netscape-actions button:disabled {
+        .btn-parse:disabled {
           opacity: 0.5;
           cursor: not-allowed;
-          transform: none;
         }
-        .raw-cookie-display {
-          margin-top: 8px;
+        .btn-generate-raw {
+          padding: 10px 20px;
+          background: #e50914;
+          border: none;
+          border-radius: 10px;
+          color: #fff;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .btn-generate-raw:hover:not(:disabled) {
+          background: #b20710;
+          transform: scale(1.02);
+        }
+        .btn-generate-raw:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .raw-result {
+          padding: 12px;
+          background: rgba(16, 185, 129, 0.05);
+          border-radius: 10px;
+          border: 1px solid rgba(16, 185, 129, 0.1);
+        }
+        .raw-label {
+          font-size: 13px;
+          color: #9ca3af;
+          margin-bottom: 4px;
+        }
+        .raw-cookie {
+          display: block;
+          word-break: break-all;
+          font-size: 12px;
+          color: #eaeef2;
+          background: rgba(0, 0, 0, 0.2);
+          padding: 8px;
+          border-radius: 6px;
+          margin-top: 4px;
+          max-height: 150px;
+          overflow: auto;
+          font-family: 'SF Mono', 'Fira Code', monospace;
         }
 
         /* ===== ERROR ===== */
@@ -1178,13 +1130,6 @@ export default function Home() {
             padding: 14px 24px;
             font-size: 16px;
           }
-          .server-selector {
-            flex-direction: column;
-            align-items: stretch;
-          }
-          .server-select {
-            width: 100%;
-          }
           .result-header {
             flex-direction: column;
             align-items: flex-start;
@@ -1196,9 +1141,11 @@ export default function Home() {
           .netscape-actions {
             flex-direction: column;
           }
-          .netscape-actions button {
+          .btn-parse,
+          .btn-generate-raw {
             width: 100%;
             justify-content: center;
+            text-align: center;
           }
         }
         @media (max-width: 400px) {
