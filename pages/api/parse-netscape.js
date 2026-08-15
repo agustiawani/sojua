@@ -1,5 +1,5 @@
 // pages/api/parse-netscape.js
-// Endpoint untuk mengubah cookie Netscape (.txt) menjadi raw HTTP string
+// Konversi Netscape (.txt) ke Raw Cookie String
 
 export default function handler(req, res) {
   if (req.method !== 'POST') {
@@ -17,7 +17,7 @@ export default function handler(req, res) {
   // Deteksi apakah ini format Netscape (ada tab dan .netflix.com)
   const isNetscape = lines.some(l => l.includes('\t') && l.includes('.netflix.com'));
   if (!isNetscape) {
-    return res.status(400).json({ error: 'Format tidak dikenali sebagai Netscape. Pastikan berisi tab dan .netflix.com' });
+    return res.status(400).json({ error: 'Format tidak dikenali sebagai Netscape.' });
   }
 
   const requiredKeys = ['NetflixId', 'SecureNetflixId', 'nfvdid', 'OptanonConsent'];
@@ -35,9 +35,7 @@ export default function handler(req, res) {
   }
 
   if (cookieParts.length === 0) {
-    return res.status(400).json({ 
-      error: 'Tidak ditemukan cookie yang dibutuhkan (NetflixId, SecureNetflixId, nfvdid, OptanonConsent).' 
-    });
+    return res.status(400).json({ error: 'Tidak ditemukan cookie yang dibutuhkan (NetflixId, SecureNetflixId, dll).' });
   }
 
   const rawCookie = cookieParts.join('; ');
