@@ -1,5 +1,6 @@
 // pages/api/auto-generate.js
-// Server lokal dari cookies.json dengan validasi & pembersihan otomatis
+// Sederhana: baca cookies.json, pilih random, generate token
+// Tanpa validasi, tanpa menulis file (read-only)
 
 import fs from 'fs';
 import path from 'path';
@@ -62,9 +63,29 @@ const BASE_HEADERS = {
 };
 
 // =====================================================
-// FUNGSI CEK VALIDITAS COOKIE
+// FUNGSI BACA FILE COOKIE (READ-ONLY)
 // =====================================================
-async function checkCookieValidity(cookieStr) {
+function readCookiesFile() {
+  try {
+    if (!fs.existsSync(COOKIE_FILE)) {
+      return [];
+    }
+    const content = fs.readFileSync(COOKIE_FILE, 'utf-8');
+    const parsed = JSON.parse(content);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+    return [];
+  } catch (error) {
+    console.error('[Read] Error:', error.message);
+    return [];
+  }
+}
+
+// =====================================================
+// FUNGSI GENERATE TOKEN DARI COOKIE
+// =====================================================
+async function generateToken(cookieStr) {
   try {
     const url = new URL(API_URL);
     Object.entries(QUERY_PARAMS).forEach(([key, value]) => {
@@ -83,129 +104,41 @@ async function checkCookieValidity(cookieStr) {
     });
 
     if (!response.ok) {
-      return { valid: false, error: `HTTP ${response.status}` };
+      throw new Error(`HTTP ${response.status}`);
     }
 
     const data = await response.json();
     const token = data?.value?.account?.token?.default?.token;
 
-    if (token) {
-      const expires = data?.value?.account?.token?.default?.expires;
-      let expiryDate = null;
-      if (expires) {
-        if (typeof expires === 'number' && expires.toString().length === 13) {
-          expiryDate = new Date(expires);
-        } else if (typeof expires === 'number') {
-          expiryDate = new Date(expires * 1000);
-        } else {
-          expiryDate = new Date(expires);
-        }
-      }
-      return {
-        valid: true,
-        token,
-        expiry: expiryDate ? expiryDate.toISOString() : null,
-        expiryHuman: expiryDate ? expiryDate.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : 'Tidak diketahui',
-        profile: {
-          country: data?.value?.account?.country || 'Tidak diketahui',
-          plan: data?.value?.account?.plan || 'Tidak diketahui',
-        },
-      };
+    if (!token) {
+      throw new Error('Token tidak ditemukan');
     }
 
-    return { valid: false, error: 'Token tidak ditemukan' };
-  } catch (error) {
-    return { valid: false, error: error.message };
-  }
-}
-
-// =====================================================
-// FUNGSI BACA & TULIS FILE COOKIE
-// =====================================================
-function readCookiesFile() {
-  if (!fs.existsSync(COOKIE_FILE)) {
-    return [];
-  }
-  try {
-    const content = fs.readFileSync(COOKIE_FILE, 'utf-8');
-    const parsed = JSON.parse(content);
-    if (Array.isArray(parsed)) {
-      return parsed;
-    }
-    return [];
-  } catch (_) {
-    return [];
-  }
-}
-
-function writeCookiesFile(cookies) {
-  fs.writeFileSync(COOKIE_FILE, JSON.stringify(cookies, null, 2), 'utf-8');
-}
-
-// =====================================================
-// FUNGSI VALIDASI & PEMBERSIHAN SEMUA COOKIE
-// =====================================================
-async function validateAndCleanCookies(cookies) {
-  const activeCookies = [];
-  const expiredCookies = [];
-
-  for (let i = 0; i < cookies.length; i++) {
-    const cookieStr = cookies[i];
-    console.log(`[Validator] Memeriksa cookie ${i + 1}/${cookies.length}...`);
-    try {
-      const result = await checkCookieValidity(cookieStr);
-      if (result.valid) {
-        activeCookies.push(cookieStr);
-        console.log(`[Validator] ✅ Cookie ${i + 1} aktif`);
+    const expires = data?.value?.account?.token?.default?.expires;
+    let expiryDate = null;
+    if (expires) {
+      if (typeof expires === 'number' && expires.toString().length === 13) {
+        expiryDate = new Date(expires);
+      } else if (typeof expires === 'number') {
+        expiryDate = new Date(expires * 1000);
       } else {
-        expiredCookies.push(cookieStr);
-        console.log(`[Validator] ❌ Cookie ${i + 1} tidak aktif: ${result.error}`);
+        expiryDate = new Date(expires);
       }
-    } catch (error) {
-      expiredCookies.push(cookieStr);
-      console.log(`[Validator] ❌ Cookie ${i + 1} error: ${error.message}`);
     }
+
+    return {
+      success: true,
+      token,
+      url: `https://netflix.com/?nftoken=${token}`,
+      expiryHuman: expiryDate ? expiryDate.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : 'Tidak diketahui',
+      profile: {
+        country: data?.value?.account?.country || 'Tidak diketahui',
+        plan: data?.value?.account?.plan || 'Tidak diketahui',
+      },
+    };
+  } catch (error) {
+    throw new Error(error.message);
   }
-
-  // Jika ada cookie yang expired, update file
-  if (expiredCookies.length > 0) {
-    console.log(`[Validator] Menghapus ${expiredCookies.length} cookie tidak aktif...`);
-    writeCookiesFile(activeCookies);
-  }
-
-  return {
-    active: activeCookies,
-    expired: expiredCookies,
-    total: cookies.length,
-    activeCount: activeCookies.length,
-    expiredCount: expiredCookies.length,
-  };
-}
-
-// =====================================================
-// FUNGSI GENERATE TOKEN DARI COOKIE AKTIF
-// =====================================================
-async function generateFromActiveCookie(activeCookies) {
-  // Acak urutan
-  const shuffled = [...activeCookies].sort(() => Math.random() - 0.5);
-
-  for (const cookieStr of shuffled) {
-    try {
-      const result = await checkCookieValidity(cookieStr);
-      if (result.valid) {
-        return {
-          success: true,
-          url: `https://netflix.com/?nftoken=${result.token}`,
-          expiry: result.expiryHuman,
-          profile: result.profile,
-        };
-      }
-    } catch (_) {
-      continue;
-    }
-  }
-
-  throw new Error('Tidak ada cookie aktif yang tersedia.');
 }
 
 // =====================================================
@@ -230,39 +163,48 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log(`[Auto-Generate] Total cookie di file: ${cookies.length}`);
+    console.log(`[Auto-Generate] Total cookie: ${cookies.length}`);
 
-    // 2. Validasi dan bersihkan cookie
-    const result = await validateAndCleanCookies(cookies);
+    // 2. Pilih random dan coba generate (max 3x percobaan)
+    let lastError = null;
 
-    if (result.activeCount === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tidak ada cookie aktif. Semua cookie expired atau tidak valid.',
-        available: 0,
-        total: result.total,
-        removed: result.expiredCount,
-      });
+    for (let attempt = 0; attempt < Math.min(3, cookies.length); attempt++) {
+      try {
+        const randomIndex = Math.floor(Math.random() * cookies.length);
+        const selectedCookie = cookies[randomIndex];
+        console.log(`[Auto-Generate] Percobaan ${attempt + 1}, menggunakan cookie #${randomIndex + 1}`);
+
+        const result = await generateToken(selectedCookie);
+
+        console.log('[Auto-Generate] ✅ Sukses!');
+        console.log('[Auto-Generate] ========================================');
+
+        return res.status(200).json({
+          success: true,
+          ...result,
+          available: cookies.length,
+          usedIndex: randomIndex + 1,
+          attempt: attempt + 1,
+        });
+      } catch (error) {
+        lastError = error;
+        console.log(`[Auto-Generate] ❌ Percobaan ${attempt + 1} gagal: ${error.message}`);
+        continue;
+      }
     }
 
-    // 3. Generate token dari cookie aktif
-    const tokenResult = await generateFromActiveCookie(result.active);
-
-    console.log(`[Auto-Generate] ✅ Sukses! Cookie aktif: ${result.activeCount}/${result.total}`);
-    console.log('[Auto-Generate] ========================================');
-
-    return res.status(200).json({
-      success: true,
-      ...tokenResult,
-      available: result.activeCount,
-      total: result.total,
-      removed: result.expiredCount,
+    // Jika semua percobaan gagal
+    return res.status(500).json({
+      success: false,
+      error: `Gagal generate setelah ${Math.min(3, cookies.length)} percobaan. ${lastError?.message || ''}`,
+      available: cookies.length,
     });
   } catch (error) {
     console.error('[Auto-Generate] Error:', error.message);
     return res.status(500).json({
       success: false,
       error: error.message || 'Terjadi kesalahan server.',
+      available: readCookiesFile().length || 0,
     });
   }
 }
