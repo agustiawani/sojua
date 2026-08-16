@@ -159,7 +159,6 @@ export default async function handler(req, res) {
       return res.status(404).json({
         success: false,
         error: 'Tidak ada cookie tersedia. Tambahkan cookie di data/cookies.json',
-        available: 0,
       });
     }
 
@@ -182,9 +181,6 @@ export default async function handler(req, res) {
         return res.status(200).json({
           success: true,
           ...result,
-          available: cookies.length,
-          usedIndex: randomIndex + 1,
-          attempt: attempt + 1,
         });
       } catch (error) {
         lastError = error;
@@ -197,14 +193,12 @@ export default async function handler(req, res) {
     return res.status(500).json({
       success: false,
       error: `Gagal generate setelah ${Math.min(3, cookies.length)} percobaan. ${lastError?.message || ''}`,
-      available: cookies.length,
     });
   } catch (error) {
     console.error('[Auto-Generate] Error:', error.message);
     return res.status(500).json({
       success: false,
       error: error.message || 'Terjadi kesalahan server.',
-      available: readCookiesFile().length || 0,
     });
   }
 }
