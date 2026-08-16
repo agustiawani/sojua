@@ -1,6 +1,7 @@
 // pages/api/auto-generate.js
 // Sederhana: baca cookies.json, pilih random, generate token
 // Tanpa validasi, tanpa menulis file (read-only)
+// Error disederhanakan tanpa menyebutkan jumlah percobaan
 
 import fs from 'fs';
 import path from 'path';
@@ -189,16 +190,17 @@ export default async function handler(req, res) {
       }
     }
 
-    // Jika semua percobaan gagal
+    // Jika semua percobaan gagal, return error sederhana tanpa detail percobaan
+    console.log('[Auto-Generate] ❌ Semua percobaan gagal');
     return res.status(500).json({
       success: false,
-      error: `Gagal generate setelah ${Math.min(3, cookies.length)} percobaan. ${lastError?.message || ''}`,
+      error: 'Gagal generate link. Coba lagi nanti.',
     });
   } catch (error) {
     console.error('[Auto-Generate] Error:', error.message);
     return res.status(500).json({
       success: false,
-      error: error.message || 'Terjadi kesalahan server.',
+      error: 'Gagal generate link. Coba lagi nanti.',
     });
   }
 }
