@@ -1,6 +1,5 @@
 // pages/index.js
-// Final version: Auto Generate + Converter + Netscape Converter
-// Dengan cooldown 3 detik untuk prevent spam
+// Tanpa delay, tanpa informasi jumlah cookie
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
@@ -23,8 +22,6 @@ export default function Home() {
   const [autoGenLoading, setAutoGenLoading] = useState(false);
   const [autoGenResult, setAutoGenResult] = useState(null);
   const [autoGenError, setAutoGenError] = useState('');
-  const [availableCookies, setAvailableCookies] = useState(0);
-  const [cooldown, setCooldown] = useState(false);
 
   // ===== STATE UNTUK NETSCAPE CONVERTER =====
   const [netscapeInput, setNetscapeInput] = useState('');
@@ -115,13 +112,8 @@ export default function Home() {
     }
   };
 
-  // ===== AUTO GENERATE (dengan cooldown) =====
+  // ===== AUTO GENERATE (Tanpa delay & tanpa info jumlah) =====
   const handleAutoGenerate = async () => {
-    if (cooldown) {
-      setAutoGenError('⏳ Tunggu 3 detik sebelum generate lagi.');
-      return;
-    }
-
     setAutoGenLoading(true);
     setAutoGenError('');
     setAutoGenResult(null);
@@ -135,18 +127,13 @@ export default function Home() {
 
       if (res.ok && data.success) {
         setAutoGenResult(data);
-        setAvailableCookies(data.available || 0);
       } else {
         setAutoGenError(data.error || 'Gagal menghasilkan link.');
-        setAvailableCookies(data.available || 0);
       }
     } catch (_) {
       setAutoGenError('Terjadi kesalahan jaringan.');
     } finally {
       setAutoGenLoading(false);
-      // Cooldown 3 detik
-      setCooldown(true);
-      setTimeout(() => setCooldown(false), 3000);
     }
   };
 
@@ -238,28 +225,22 @@ export default function Home() {
         </div>
 
         {/* ============================================ */}
-        {/* TAB: AUTO GENERATE (Tanpa pilihan server) */}
+        {/* TAB: AUTO GENERATE (Tanpa delay & info) */}
         {/* ============================================ */}
         {activeTab === 'auto' && (
           <div className="tab-content">
             <div className="section-label">⚡ GENERATE LINK INSTAN</div>
             <p className="hint">
-              Klik tombol di bawah untuk mendapatkan link NFToken dari cookie yang tersedia.
+              Klik tombol di bawah untuk mendapatkan link NFToken.
             </p>
-
-            {availableCookies > 0 && (
-              <div className="cookie-stats">
-                🍪 <strong>{availableCookies}</strong> cookie tersedia
-              </div>
-            )}
 
             <div className="auto-generate-area">
               <button
                 className="btn-generate-auto"
                 onClick={handleAutoGenerate}
-                disabled={autoGenLoading || cooldown}
+                disabled={autoGenLoading}
               >
-                {autoGenLoading ? '⏳ Memproses...' : cooldown ? '⏳ Tunggu 3s...' : '⚡ Generate Link'}
+                {autoGenLoading ? '⏳ Memproses...' : '⚡ Generate Link'}
               </button>
               {autoGenError && <div className="error-box">{autoGenError}</div>}
             </div>
@@ -268,10 +249,6 @@ export default function Home() {
               <div className="result-box">
                 <div className="result-header">
                   <span className="result-badge">✅ SUKSES!</span>
-                  <span className="result-source">
-                    Sumber: Lokal (cookies.json) • {autoGenResult.available || 0} tersedia
-                    {autoGenResult.attempt > 1 && ` • Percobaan ke-${autoGenResult.attempt}`}
-                  </span>
                 </div>
 
                 <div className="result-item">
@@ -680,21 +657,6 @@ export default function Home() {
           padding: 20px 0;
         }
 
-        /* ===== COOKIE STATS ===== */
-        .cookie-stats {
-          background: rgba(16, 185, 129, 0.08);
-          padding: 10px 16px;
-          border-radius: 10px;
-          border: 1px solid rgba(16, 185, 129, 0.12);
-          text-align: center;
-          font-size: 14px;
-          color: #10b981;
-        }
-        .cookie-stats strong {
-          font-size: 18px;
-          font-weight: 700;
-        }
-
         /* ===== AUTO GENERATE ===== */
         .auto-generate-area {
           display: flex;
@@ -863,11 +825,6 @@ export default function Home() {
           font-size: 18px;
           font-weight: 700;
           color: #10b981;
-        }
-        .result-source {
-          font-size: 12px;
-          color: #6b7280;
-          margin-left: 12px;
         }
         .result-item {
           display: flex;
@@ -1148,10 +1105,6 @@ export default function Home() {
           .result-header {
             flex-direction: column;
             align-items: flex-start;
-          }
-          .result-source {
-            margin-left: 0;
-            margin-top: 4px;
           }
           .netscape-actions {
             flex-direction: column;
