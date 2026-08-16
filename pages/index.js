@@ -1,5 +1,6 @@
 // pages/index.js
-// Final version: Auto Generate (tanpa pilihan server) + Converter + Netscape Converter
+// Final version: Auto Generate + Converter + Netscape Converter
+// Dengan cooldown 3 detik untuk prevent spam
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
@@ -23,6 +24,7 @@ export default function Home() {
   const [autoGenResult, setAutoGenResult] = useState(null);
   const [autoGenError, setAutoGenError] = useState('');
   const [availableCookies, setAvailableCookies] = useState(0);
+  const [cooldown, setCooldown] = useState(false);
 
   // ===== STATE UNTUK NETSCAPE CONVERTER =====
   const [netscapeInput, setNetscapeInput] = useState('');
@@ -113,17 +115,24 @@ export default function Home() {
     }
   };
 
-  // ===== AUTO GENERATE =====
+  // ===== AUTO GENERATE (dengan cooldown) =====
   const handleAutoGenerate = async () => {
+    if (cooldown) {
+      setAutoGenError('⏳ Tunggu 3 detik sebelum generate lagi.');
+      return;
+    }
+
     setAutoGenLoading(true);
     setAutoGenError('');
     setAutoGenResult(null);
+
     try {
       const res = await fetch('/api/auto-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
       const data = await res.json();
+
       if (res.ok && data.success) {
         setAutoGenResult(data);
         setAvailableCookies(data.available || 0);
@@ -135,6 +144,9 @@ export default function Home() {
       setAutoGenError('Terjadi kesalahan jaringan.');
     } finally {
       setAutoGenLoading(false);
+      // Cooldown 3 detik
+      setCooldown(true);
+      setTimeout(() => setCooldown(false), 3000);
     }
   };
 
@@ -237,7 +249,7 @@ export default function Home() {
 
             {availableCookies > 0 && (
               <div className="cookie-stats">
-                🍪 <strong>{availableCookies}</strong> cookie aktif tersedia
+                🍪 <strong>{availableCookies}</strong> cookie tersedia
               </div>
             )}
 
@@ -245,9 +257,9 @@ export default function Home() {
               <button
                 className="btn-generate-auto"
                 onClick={handleAutoGenerate}
-                disabled={autoGenLoading}
+                disabled={autoGenLoading || cooldown}
               >
-                {autoGenLoading ? '⏳ Memproses...' : '⚡ Generate Link'}
+                {autoGenLoading ? '⏳ Memproses...' : cooldown ? '⏳ Tunggu 3s...' : '⚡ Generate Link'}
               </button>
               {autoGenError && <div className="error-box">{autoGenError}</div>}
             </div>
@@ -256,7 +268,10 @@ export default function Home() {
               <div className="result-box">
                 <div className="result-header">
                   <span className="result-badge">✅ SUKSES!</span>
-                  <span className="result-source">Sumber: Lokal (cookies.json)</span>
+                  <span className="result-source">
+                    Sumber: Lokal (cookies.json) • {autoGenResult.available || 0} tersedia
+                    {autoGenResult.attempt > 1 && ` • Percobaan ke-${autoGenResult.attempt}`}
+                  </span>
                 </div>
 
                 <div className="result-item">
@@ -707,7 +722,7 @@ export default function Home() {
           box-shadow: 0 8px 32px rgba(229, 9, 20, 0.45);
         }
         .btn-generate-auto:disabled {
-          opacity: 0.5;
+          opacity: 0.6;
           cursor: not-allowed;
           transform: none;
         }
