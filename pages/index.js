@@ -1,5 +1,6 @@
 // pages/index.js
-// Tanpa delay, tanpa informasi jumlah cookie
+// Final version: Auto Generate + Converter (diperbaiki) + Netscape Converter
+// Tanpa delay, tanpa info jumlah cookie
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
@@ -289,13 +290,14 @@ export default function Home() {
         )}
 
         {/* ============================================ */}
-        {/* TAB: CONVERTER (Manual) */}
+        {/* TAB: CONVERTER (Manual - DIPERBAIKI) */}
         {/* ============================================ */}
         {activeTab === 'converter' && (
           <div className="tab-content">
             <div className="section-label">RAW COOKIES</div>
             <div className="char-counter">{cookieInput.length} CHARS</div>
 
+            {/* Daftar cookie tersimpan */}
             {savedCookies.length > 0 && (
               <div className="saved-section">
                 <div className="saved-list">
@@ -316,6 +318,7 @@ export default function Home() {
               </div>
             )}
 
+            {/* Form input */}
             <form onSubmit={handleConverterSubmit}>
               <textarea
                 rows={6}
@@ -350,18 +353,21 @@ export default function Home() {
               </div>
             </form>
 
+            {/* Error */}
             {error && (
               <div className="error-box">
                 <strong>❌ Error:</strong> {error}
               </div>
             )}
 
+            {/* ===== HASIL CONVERTER (DIPERBAIKI) ===== */}
             {result && (
               <div className="result-box converter-result">
                 <div className="result-header">
                   <span className="result-badge">✅ SUKSES!</span>
                 </div>
 
+                {/* URL LOGIN */}
                 <div className="result-item">
                   <span className="result-label">🔗 URL LOGIN</span>
                   <div className="result-value-wrap">
@@ -374,11 +380,13 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* KADALUARSA */}
                 <div className="result-item">
                   <span className="result-label">⏰ KADALUARSA</span>
                   <span className="result-value">{result.expiryHuman}</span>
                 </div>
 
+                {/* TOKEN */}
                 <div className="result-item">
                   <span className="result-label">🔑 TOKEN</span>
                   <div className="result-value-wrap">
@@ -389,6 +397,7 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* PROFIL (jika ada) */}
                 {result.profile && (
                   <>
                     <div className="result-divider"></div>
