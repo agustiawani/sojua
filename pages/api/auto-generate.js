@@ -1,7 +1,6 @@
 // pages/api/auto-generate.js
 // Sederhana: baca cookies.json, pilih random, generate token
-// Tanpa validasi, tanpa menulis file (read-only)
-// Error disederhanakan tanpa menyebutkan jumlah percobaan
+// Mendukung pilihan perangkat: browser, android, tv
 
 import fs from 'fs';
 import path from 'path';
@@ -143,6 +142,21 @@ async function generateToken(cookieStr) {
 }
 
 // =====================================================
+// FUNGSI MENENTUKAN PATH BERDASARKAN DEVICE
+// =====================================================
+function getDevicePath(device) {
+  switch (device) {
+    case 'tv':
+      return '/tv2';
+    case 'android':
+      return '/unsupported';
+    case 'browser':
+    default:
+      return '';
+  }
+}
+
+// =====================================================
 // HANDLER UTAMA
 // =====================================================
 export default async function handler(req, res) {
@@ -150,7 +164,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Ambil device dari body (POST) atau query (GET)
+  let device = 'browser';
+  if (req.method === 'POST') {
+    device = req.body?.device || 'browser';
+  } else {
+    device = req.query?.device || 'browser';
+  }
+
   console.log('[Auto-Generate] ========================================');
+  console.log(`[Auto-Generate] Device dipilih: ${device}`);
   console.log('[Auto-Generate] Memulai proses generate...');
 
   try {
@@ -176,12 +199,19 @@ export default async function handler(req, res) {
 
         const result = await generateToken(selectedCookie);
 
+        // Tambahkan path sesuai device
+        const devicePath = getDevicePath(device);
+
         console.log('[Auto-Generate] ✅ Sukses!');
         console.log('[Auto-Generate] ========================================');
 
         return res.status(200).json({
           success: true,
-          ...result,
+          token: result.token,
+          url: `https://netflix.com${devicePath}?nftoken=${result.token}`,
+          expiry: result.expiryHuman,
+          profile: result.profile,
+          device: device,
         });
       } catch (error) {
         lastError = error;
@@ -190,7 +220,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // Jika semua percobaan gagal, return error sederhana tanpa detail percobaan
+    // Jika semua percobaan gagal
     console.log('[Auto-Generate] ❌ Semua percobaan gagal');
     return res.status(500).json({
       success: false,
