@@ -1,5 +1,5 @@
 // pages/index.js
-// Auto Generate menampilkan link
+// Final version: Auto Generate
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
@@ -186,6 +186,7 @@ export default function Home() {
     }
   };
 
+  // ===== COPY TO CLIPBOARD =====
   const copyToClipboard = (text, label) => {
     navigator.clipboard.writeText(text);
     alert(`✅ ${label} disalin ke clipboard!`);
@@ -225,7 +226,7 @@ export default function Home() {
         </div>
 
         {/* ============================================ */}
-        {/* TAB: AUTO GENERATE (3 Link) */}
+        {/* TAB: AUTO GENERATE */}
         {/* ============================================ */}
         {activeTab === 'auto' && (
           <div className="tab-content">
@@ -435,7 +436,7 @@ export default function Home() {
         )}
 
         {/* ============================================ */}
-        {/* TAB: NETSCAPE CONVERTER */}
+        {/* TAB: NETSCAPE CONVERTER (DENGAN COPY) */}
         {/* ============================================ */}
         {activeTab === 'netscape' && (
           <div className="tab-content">
@@ -482,9 +483,19 @@ export default function Home() {
                 )}
               </div>
 
+              {/* ===== RAW COOKIE RESULT DENGAN COPY ===== */}
               {rawCookieResult && (
                 <div className="raw-result">
-                  <div className="raw-label">✅ Raw Cookie berhasil:</div>
+                  <div className="raw-result-header">
+                    <span className="raw-label">✅ Raw Cookie berhasil:</span>
+                    <button
+                      onClick={() => copyToClipboard(rawCookieResult, 'Raw Cookie')}
+                      className="raw-copy-btn"
+                      title="Salin Raw Cookie"
+                    >
+                      📋 Salin
+                    </button>
+                  </div>
                   <code className="raw-cookie">{rawCookieResult}</code>
                 </div>
               )}
@@ -706,7 +717,7 @@ export default function Home() {
           transform: none;
         }
 
-        /* ===== LINKS GRID (3 Link Cards) ===== */
+        /* ===== LINKS GRID ===== */
         .links-grid {
           display: grid;
           grid-template-columns: 1fr 1fr 1fr;
@@ -997,7 +1008,7 @@ export default function Home() {
           color: #eaeef2;
         }
 
-        /* ===== SAVED SECTION (Converter) ===== */
+        /* ===== SAVED SECTION ===== */
         .saved-section {
           background: rgba(255, 255, 255, 0.03);
           border-radius: 12px;
@@ -1094,16 +1105,39 @@ export default function Home() {
           opacity: 0.5;
           cursor: not-allowed;
         }
+
+        /* ===== RAW RESULT (DENGAN COPY) ===== */
         .raw-result {
           padding: 12px;
           background: rgba(16, 185, 129, 0.05);
           border-radius: 10px;
           border: 1px solid rgba(16, 185, 129, 0.1);
         }
+        .raw-result-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 4px;
+        }
         .raw-label {
           font-size: 13px;
           color: #9ca3af;
-          margin-bottom: 4px;
+        }
+        .raw-copy-btn {
+          padding: 4px 12px;
+          border: none;
+          border-radius: 6px;
+          background: rgba(255, 255, 255, 0.06);
+          color: #eaeef2;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .raw-copy-btn:hover {
+          background: rgba(255, 255, 255, 0.12);
         }
         .raw-cookie {
           display: block;
@@ -1198,6 +1232,10 @@ export default function Home() {
           }
           .link-card {
             padding: 12px 14px;
+          }
+          .raw-result-header {
+            flex-direction: column;
+            align-items: flex-start;
           }
         }
         @media (max-width: 400px) {
