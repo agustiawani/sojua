@@ -1,5 +1,6 @@
 // pages/index.js
-// Final version: Auto Generate + Converter (diperbaiki) + Netscape Converter
+// Final version: Auto Generate + Converter + Netscape Converter
+// Dengan dropdown pilihan perangkat (Browser, Android, TV)
 // Tanpa delay, tanpa info jumlah cookie
 
 import { useState, useEffect } from 'react';
@@ -23,6 +24,7 @@ export default function Home() {
   const [autoGenLoading, setAutoGenLoading] = useState(false);
   const [autoGenResult, setAutoGenResult] = useState(null);
   const [autoGenError, setAutoGenError] = useState('');
+  const [selectedDevice, setSelectedDevice] = useState('browser');
 
   // ===== STATE UNTUK NETSCAPE CONVERTER =====
   const [netscapeInput, setNetscapeInput] = useState('');
@@ -113,7 +115,7 @@ export default function Home() {
     }
   };
 
-  // ===== AUTO GENERATE (Tanpa delay & tanpa info jumlah) =====
+  // ===== AUTO GENERATE (dengan device) =====
   const handleAutoGenerate = async () => {
     setAutoGenLoading(true);
     setAutoGenError('');
@@ -123,6 +125,7 @@ export default function Home() {
       const res = await fetch('/api/auto-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device: selectedDevice }),
       });
       const data = await res.json();
 
@@ -226,7 +229,7 @@ export default function Home() {
         </div>
 
         {/* ============================================ */}
-        {/* TAB: AUTO GENERATE (Tanpa delay & info) */}
+        {/* TAB: AUTO GENERATE */}
         {/* ============================================ */}
         {activeTab === 'auto' && (
           <div className="tab-content">
@@ -234,6 +237,22 @@ export default function Home() {
             <p className="hint">
               Klik tombol di bawah untuk mendapatkan link NFToken.
             </p>
+
+            {/* DROPDOWN PILIH PERANGKAT */}
+            <div className="device-selector">
+              <label htmlFor="deviceSelect">Pilih Perangkat:</label>
+              <select
+                id="deviceSelect"
+                value={selectedDevice}
+                onChange={(e) => setSelectedDevice(e.target.value)}
+                disabled={autoGenLoading}
+                className="device-select"
+              >
+                <option value="browser">🌐 Browser (PC)</option>
+                <option value="android">📱 Android</option>
+                <option value="tv">📺 TV</option>
+              </select>
+            </div>
 
             <div className="auto-generate-area">
               <button
@@ -250,6 +269,11 @@ export default function Home() {
               <div className="result-box">
                 <div className="result-header">
                   <span className="result-badge">✅ SUKSES!</span>
+                  <span className="result-device" style={{ fontSize: '12px', color: '#6b7280', marginLeft: '12px' }}>
+                    📱 {selectedDevice === 'browser' && 'Browser (PC)'}
+                    {selectedDevice === 'android' && 'Android'}
+                    {selectedDevice === 'tv' && 'TV'}
+                  </span>
                 </div>
 
                 <div className="result-item">
@@ -290,14 +314,13 @@ export default function Home() {
         )}
 
         {/* ============================================ */}
-        {/* TAB: CONVERTER (Manual - DIPERBAIKI) */}
+        {/* TAB: CONVERTER (Manual) */}
         {/* ============================================ */}
         {activeTab === 'converter' && (
           <div className="tab-content">
             <div className="section-label">RAW COOKIES</div>
             <div className="char-counter">{cookieInput.length} CHARS</div>
 
-            {/* Daftar cookie tersimpan */}
             {savedCookies.length > 0 && (
               <div className="saved-section">
                 <div className="saved-list">
@@ -318,7 +341,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Form input */}
             <form onSubmit={handleConverterSubmit}>
               <textarea
                 rows={6}
@@ -353,21 +375,18 @@ export default function Home() {
               </div>
             </form>
 
-            {/* Error */}
             {error && (
               <div className="error-box">
                 <strong>❌ Error:</strong> {error}
               </div>
             )}
 
-            {/* ===== HASIL CONVERTER (DIPERBAIKI) ===== */}
             {result && (
               <div className="result-box converter-result">
                 <div className="result-header">
                   <span className="result-badge">✅ SUKSES!</span>
                 </div>
 
-                {/* URL LOGIN */}
                 <div className="result-item">
                   <span className="result-label">🔗 URL LOGIN</span>
                   <div className="result-value-wrap">
@@ -380,13 +399,11 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* KADALUARSA */}
                 <div className="result-item">
                   <span className="result-label">⏰ KADALUARSA</span>
                   <span className="result-value">{result.expiryHuman}</span>
                 </div>
 
-                {/* TOKEN */}
                 <div className="result-item">
                   <span className="result-label">🔑 TOKEN</span>
                   <div className="result-value-wrap">
@@ -397,7 +414,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* PROFIL (jika ada) */}
                 {result.profile && (
                   <>
                     <div className="result-divider"></div>
@@ -664,6 +680,49 @@ export default function Home() {
           font-size: 14px;
           text-align: center;
           padding: 20px 0;
+        }
+
+        /* ===== DEVICE SELECTOR ===== */
+        .device-selector {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background: rgba(255, 255, 255, 0.03);
+          padding: 12px 16px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.04);
+          flex-wrap: wrap;
+        }
+        .device-selector label {
+          font-size: 13px;
+          font-weight: 500;
+          color: #9ca3af;
+        }
+        .device-select {
+          padding: 8px 14px;
+          border-radius: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.04);
+          color: #eaeef2;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          outline: none;
+          transition: border-color 0.2s;
+          flex: 1;
+          min-width: 150px;
+        }
+        .device-select:focus {
+          border-color: #e50914;
+          box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.08);
+        }
+        .device-select:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .device-select option {
+          background: #1a1a2e;
+          color: #eaeef2;
         }
 
         /* ===== AUTO GENERATE ===== */
@@ -1123,6 +1182,13 @@ export default function Home() {
             width: 100%;
             justify-content: center;
             text-align: center;
+          }
+          .device-selector {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .device-select {
+            width: 100%;
           }
         }
         @media (max-width: 400px) {
