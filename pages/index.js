@@ -1,5 +1,5 @@
 // pages/index.js
-// Auto Generate menampilkan 3 link sekaligus (PC, Android, TV)
+// Auto Generate menampilkan link
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
@@ -112,7 +112,7 @@ export default function Home() {
     }
   };
 
-  // ===== AUTO GENERATE (3 Link Sekaligus) =====
+  // ===== AUTO GENERATE =====
   const handleAutoGenerate = async () => {
     setAutoGenLoading(true);
     setAutoGenError('');
@@ -229,9 +229,9 @@ export default function Home() {
         {/* ============================================ */}
         {activeTab === 'auto' && (
           <div className="tab-content">
-            <div className="section-label">⚡ GENERATE 3 LINK SEKALIGUS</div>
+            <div className="section-label">⚡ GENERATE</div>
             <p className="hint">
-              Klik tombol di bawah untuk mendapatkan 3 link NFToken (PC, Android, TV) dari satu cookie.
+              Klik tombol di bawah untuk mendapatkan link NFToken Support PC, Android, TV
             </p>
 
             <div className="auto-generate-area">
@@ -240,7 +240,7 @@ export default function Home() {
                 onClick={handleAutoGenerate}
                 disabled={autoGenLoading}
               >
-                {autoGenLoading ? '⏳ Memproses...' : '⚡ Generate 3 Link'}
+                {autoGenLoading ? '⏳ Memproses...' : '⚡ Generate'}
               </button>
               {autoGenError && <div className="error-box">{autoGenError}</div>}
             </div>
