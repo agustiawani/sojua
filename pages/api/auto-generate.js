@@ -1,5 +1,5 @@
 // pages/api/auto-generate.js
-// Generate 3 link sekaligus: PC, Android, TV
+// Mendukung dua jenis data: Cookie dan Token langsung
 
 import fs from 'fs';
 import path from 'path';
@@ -62,9 +62,9 @@ const BASE_HEADERS = {
 };
 
 // =====================================================
-// FUNGSI BACA FILE COOKIE
+// FUNGSI BACA FILE COOKIE / TOKEN
 // =====================================================
-function readCookiesFile() {
+function readDataFile() {
   try {
     if (!fs.existsSync(COOKIE_FILE)) {
       return [];
@@ -82,9 +82,17 @@ function readCookiesFile() {
 }
 
 // =====================================================
+// FUNGSI CEK APAKAH DATA ADALAH TOKEN (bukan cookie)
+// =====================================================
+function isToken(data) {
+  // Jika tidak mengandung NetflixId atau SecureNetflixId, maka dianggap token
+  return !data.includes('NetflixId=') && !data.includes('SecureNetflixId=');
+}
+
+// =====================================================
 // FUNGSI GENERATE TOKEN DARI COOKIE
 // =====================================================
-async function generateToken(cookieStr) {
+async function generateTokenFromCookie(cookieStr) {
   try {
     const url = new URL(API_URL);
     Object.entries(QUERY_PARAMS).forEach(([key, value]) => {
@@ -162,41 +170,61 @@ export default async function handler(req, res) {
   console.log('[Auto-Generate] Memulai proses generate 3 link...');
 
   try {
-    // 1. Baca file cookie
-    const cookies = readCookiesFile();
-    if (cookies.length === 0) {
+    // 1. Baca file data (cookie atau token)
+    const items = readDataFile();
+    if (items.length === 0) {
       return res.status(404).json({
         success: false,
-        error: 'Tidak ada cookie tersedia. Tambahkan cookie di data/cookies.json',
+        error: 'Tidak ada data tersedia. Tambahkan cookie atau token di data/cookies.json',
       });
     }
 
-    console.log(`[Auto-Generate] Total cookie: ${cookies.length}`);
+    console.log(`[Auto-Generate] Total item: ${items.length}`);
 
-    // 2. Pilih random dan coba generate (max 3x percobaan)
+    // 2. Acak dan coba (max 5 percobaan)
     let lastError = null;
 
-    for (let attempt = 0; attempt < Math.min(3, cookies.length); attempt++) {
+    for (let attempt = 0; attempt < Math.min(5, items.length); attempt++) {
       try {
-        const randomIndex = Math.floor(Math.random() * cookies.length);
-        const selectedCookie = cookies[randomIndex];
-        console.log(`[Auto-Generate] Percobaan ${attempt + 1}, menggunakan cookie #${randomIndex + 1}`);
+        const randomIndex = Math.floor(Math.random() * items.length);
+        const selectedItem = items[randomIndex];
+        console.log(`[Auto-Generate] Percobaan ${attempt + 1}, item #${randomIndex + 1}`);
 
-        const result = await generateToken(selectedCookie);
+        let result = null;
 
-        // Buat 3 link
-        const links = generateThreeLinks(result.token);
+        // --- CEK APAKAH INI TOKEN LANGSUNG ---
+        if (isToken(selectedItem)) {
+          console.log('[Auto-Generate] ✅ Mendeteksi token langsung');
+          const token = selectedItem.trim();
+          const links = generateThreeLinks(token);
 
-        console.log('[Auto-Generate] ✅ Sukses!');
-        console.log('[Auto-Generate] ========================================');
+          return res.status(200).json({
+            success: true,
+            token: token,
+            expiry: 'Token Langsung',
+            profile: null,
+            links: links,
+            type: 'token',
+          });
+        }
 
-        return res.status(200).json({
-          success: true,
-          token: result.token,
-          expiry: result.expiryHuman,
-          profile: result.profile,
-          links: links,
-        });
+        // --- JIKA INI COOKIE, GENERATE TOKEN ---
+        console.log('[Auto-Generate] 🔑 Mendeteksi cookie, mencoba generate...');
+        result = await generateTokenFromCookie(selectedItem);
+
+        if (result && result.success) {
+          const links = generateThreeLinks(result.token);
+          return res.status(200).json({
+            success: true,
+            token: result.token,
+            expiry: result.expiryHuman,
+            profile: result.profile,
+            links: links,
+            type: 'cookie',
+          });
+        }
+
+        throw new Error('Gagal generate dari cookie');
       } catch (error) {
         lastError = error;
         console.log(`[Auto-Generate] ❌ Percobaan ${attempt + 1} gagal: ${error.message}`);
