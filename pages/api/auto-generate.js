@@ -1,6 +1,5 @@
 // pages/api/auto-generate.js
-// Sederhana: baca cookies.json, pilih random, generate token
-// Mendukung pilihan perangkat: browser, android, tv
+// Generate 3 link sekaligus: PC, Android, TV
 
 import fs from 'fs';
 import path from 'path';
@@ -63,7 +62,7 @@ const BASE_HEADERS = {
 };
 
 // =====================================================
-// FUNGSI BACA FILE COOKIE (READ-ONLY)
+// FUNGSI BACA FILE COOKIE
 // =====================================================
 function readCookiesFile() {
   try {
@@ -129,7 +128,6 @@ async function generateToken(cookieStr) {
     return {
       success: true,
       token,
-      url: `https://netflix.com/?nftoken=${token}`,
       expiryHuman: expiryDate ? expiryDate.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : 'Tidak diketahui',
       profile: {
         country: data?.value?.account?.country || 'Tidak diketahui',
@@ -142,18 +140,14 @@ async function generateToken(cookieStr) {
 }
 
 // =====================================================
-// FUNGSI MENENTUKAN PATH BERDASARKAN DEVICE
+// FUNGSI MEMBUAT 3 LINK DARI SATU TOKEN
 // =====================================================
-function getDevicePath(device) {
-  switch (device) {
-    case 'tv':
-      return '/tv2';
-    case 'android':
-      return '/unsupported';
-    case 'browser':
-    default:
-      return '';
-  }
+function generateThreeLinks(token) {
+  return {
+    pc: `https://netflix.com/?nftoken=${token}`,
+    android: `https://netflix.com/unsupported?nftoken=${token}`,
+    tv: `https://netflix.com/tv2?nftoken=${token}`,
+  };
 }
 
 // =====================================================
@@ -164,17 +158,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Ambil device dari body (POST) atau query (GET)
-  let device = 'browser';
-  if (req.method === 'POST') {
-    device = req.body?.device || 'browser';
-  } else {
-    device = req.query?.device || 'browser';
-  }
-
   console.log('[Auto-Generate] ========================================');
-  console.log(`[Auto-Generate] Device dipilih: ${device}`);
-  console.log('[Auto-Generate] Memulai proses generate...');
+  console.log('[Auto-Generate] Memulai proses generate 3 link...');
 
   try {
     // 1. Baca file cookie
@@ -199,8 +184,8 @@ export default async function handler(req, res) {
 
         const result = await generateToken(selectedCookie);
 
-        // Tambahkan path sesuai device
-        const devicePath = getDevicePath(device);
+        // Buat 3 link
+        const links = generateThreeLinks(result.token);
 
         console.log('[Auto-Generate] ✅ Sukses!');
         console.log('[Auto-Generate] ========================================');
@@ -208,10 +193,9 @@ export default async function handler(req, res) {
         return res.status(200).json({
           success: true,
           token: result.token,
-          url: `https://netflix.com${devicePath}?nftoken=${result.token}`,
           expiry: result.expiryHuman,
           profile: result.profile,
-          device: device,
+          links: links,
         });
       } catch (error) {
         lastError = error;
