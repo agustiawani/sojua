@@ -1,7 +1,5 @@
 // pages/index.js
-// Final version: Auto Generate + Converter + Netscape Converter
-// Dengan dropdown pilihan perangkat (Browser, Android, TV)
-// Tanpa delay, tanpa info jumlah cookie
+// Auto Generate menampilkan 3 link sekaligus (PC, Android, TV)
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
@@ -24,7 +22,6 @@ export default function Home() {
   const [autoGenLoading, setAutoGenLoading] = useState(false);
   const [autoGenResult, setAutoGenResult] = useState(null);
   const [autoGenError, setAutoGenError] = useState('');
-  const [selectedDevice, setSelectedDevice] = useState('browser');
 
   // ===== STATE UNTUK NETSCAPE CONVERTER =====
   const [netscapeInput, setNetscapeInput] = useState('');
@@ -115,7 +112,7 @@ export default function Home() {
     }
   };
 
-  // ===== AUTO GENERATE (dengan device) =====
+  // ===== AUTO GENERATE (3 Link Sekaligus) =====
   const handleAutoGenerate = async () => {
     setAutoGenLoading(true);
     setAutoGenError('');
@@ -125,7 +122,6 @@ export default function Home() {
       const res = await fetch('/api/auto-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device: selectedDevice }),
       });
       const data = await res.json();
 
@@ -229,30 +225,14 @@ export default function Home() {
         </div>
 
         {/* ============================================ */}
-        {/* TAB: AUTO GENERATE */}
+        {/* TAB: AUTO GENERATE (3 Link) */}
         {/* ============================================ */}
         {activeTab === 'auto' && (
           <div className="tab-content">
-            <div className="section-label">⚡ GENERATE LINK INSTAN</div>
+            <div className="section-label">⚡ GENERATE 3 LINK SEKALIGUS</div>
             <p className="hint">
-              Klik tombol di bawah untuk mendapatkan link NFToken.
+              Klik tombol di bawah untuk mendapatkan 3 link NFToken (PC, Android, TV) dari satu cookie.
             </p>
-
-            {/* DROPDOWN PILIH PERANGKAT */}
-            <div className="device-selector">
-              <label htmlFor="deviceSelect">Pilih Perangkat:</label>
-              <select
-                id="deviceSelect"
-                value={selectedDevice}
-                onChange={(e) => setSelectedDevice(e.target.value)}
-                disabled={autoGenLoading}
-                className="device-select"
-              >
-                <option value="browser">🌐 Browser (PC)</option>
-                <option value="android">📱 Android</option>
-                <option value="tv">📺 TV</option>
-              </select>
-            </div>
 
             <div className="auto-generate-area">
               <button
@@ -260,7 +240,7 @@ export default function Home() {
                 onClick={handleAutoGenerate}
                 disabled={autoGenLoading}
               >
-                {autoGenLoading ? '⏳ Memproses...' : '⚡ Generate Link'}
+                {autoGenLoading ? '⏳ Memproses...' : '⚡ Generate 3 Link'}
               </button>
               {autoGenError && <div className="error-box">{autoGenError}</div>}
             </div>
@@ -269,23 +249,6 @@ export default function Home() {
               <div className="result-box">
                 <div className="result-header">
                   <span className="result-badge">✅ SUKSES!</span>
-                  <span className="result-device" style={{ fontSize: '12px', color: '#6b7280', marginLeft: '12px' }}>
-                    📱 {selectedDevice === 'browser' && 'Browser (PC)'}
-                    {selectedDevice === 'android' && 'Android'}
-                    {selectedDevice === 'tv' && 'TV'}
-                  </span>
-                </div>
-
-                <div className="result-item">
-                  <span className="result-label">🔗 URL LOGIN</span>
-                  <div className="result-value-wrap">
-                    <a href={autoGenResult.url} target="_blank" rel="noopener noreferrer" className="result-link">
-                      {autoGenResult.url}
-                    </a>
-                    <button onClick={() => copyToClipboard(autoGenResult.url, 'Link')} className="copy-btn">
-                      📋
-                    </button>
-                  </div>
                 </div>
 
                 <div className="result-item">
@@ -294,20 +257,49 @@ export default function Home() {
                 </div>
 
                 {autoGenResult.profile && (
-                  <>
-                    <div className="result-divider"></div>
-                    <div className="profile-grid">
-                      <div className="profile-item">
-                        <span className="profile-label">🌍 Negara</span>
-                        <span className="profile-value">{autoGenResult.profile.country || 'Tidak diketahui'}</span>
-                      </div>
-                      <div className="profile-item">
-                        <span className="profile-label">📦 Paket</span>
-                        <span className="profile-value">{autoGenResult.profile.plan || 'Tidak diketahui'}</span>
-                      </div>
-                    </div>
-                  </>
+                  <div className="profile-mini">
+                    <span>🌍 {autoGenResult.profile.country}</span>
+                    <span>📦 {autoGenResult.profile.plan}</span>
+                  </div>
                 )}
+
+                <div className="result-divider"></div>
+
+                {/* 3 LINK CARD */}
+                <div className="links-grid">
+                  {/* PC */}
+                  <div className="link-card">
+                    <div className="link-card-header">🖥️ PC / Browser</div>
+                    <a href={autoGenResult.links.pc} target="_blank" rel="noopener noreferrer" className="link-card-url">
+                      {autoGenResult.links.pc}
+                    </a>
+                    <button onClick={() => copyToClipboard(autoGenResult.links.pc, 'Link PC')} className="link-card-copy">
+                      📋 Salin
+                    </button>
+                  </div>
+
+                  {/* Android */}
+                  <div className="link-card">
+                    <div className="link-card-header">📱 Android</div>
+                    <a href={autoGenResult.links.android} target="_blank" rel="noopener noreferrer" className="link-card-url">
+                      {autoGenResult.links.android}
+                    </a>
+                    <button onClick={() => copyToClipboard(autoGenResult.links.android, 'Link Android')} className="link-card-copy">
+                      📋 Salin
+                    </button>
+                  </div>
+
+                  {/* TV */}
+                  <div className="link-card">
+                    <div className="link-card-header">📺 TV</div>
+                    <a href={autoGenResult.links.tv} target="_blank" rel="noopener noreferrer" className="link-card-url">
+                      {autoGenResult.links.tv}
+                    </a>
+                    <button onClick={() => copyToClipboard(autoGenResult.links.tv, 'Link TV')} className="link-card-copy">
+                      📋 Salin
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -682,56 +674,13 @@ export default function Home() {
           padding: 20px 0;
         }
 
-        /* ===== DEVICE SELECTOR ===== */
-        .device-selector {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          background: rgba(255, 255, 255, 0.03);
-          padding: 12px 16px;
-          border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.04);
-          flex-wrap: wrap;
-        }
-        .device-selector label {
-          font-size: 13px;
-          font-weight: 500;
-          color: #9ca3af;
-        }
-        .device-select {
-          padding: 8px 14px;
-          border-radius: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(255, 255, 255, 0.04);
-          color: #eaeef2;
-          font-size: 13px;
-          font-weight: 500;
-          cursor: pointer;
-          outline: none;
-          transition: border-color 0.2s;
-          flex: 1;
-          min-width: 150px;
-        }
-        .device-select:focus {
-          border-color: #e50914;
-          box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.08);
-        }
-        .device-select:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-        .device-select option {
-          background: #1a1a2e;
-          color: #eaeef2;
-        }
-
         /* ===== AUTO GENERATE ===== */
         .auto-generate-area {
           display: flex;
           flex-direction: column;
           gap: 12px;
           align-items: center;
-          padding: 20px 0;
+          padding: 10px 0;
         }
         .btn-generate-auto {
           padding: 16px 48px;
@@ -755,6 +704,67 @@ export default function Home() {
           opacity: 0.6;
           cursor: not-allowed;
           transform: none;
+        }
+
+        /* ===== LINKS GRID (3 Link Cards) ===== */
+        .links-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 12px;
+          margin-top: 8px;
+        }
+        .link-card {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 14px;
+          padding: 14px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          transition: all 0.2s;
+        }
+        .link-card:hover {
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(229, 9, 20, 0.2);
+        }
+        .link-card-header {
+          font-size: 13px;
+          font-weight: 700;
+          color: #9ca3af;
+          letter-spacing: 0.5px;
+        }
+        .link-card-url {
+          font-size: 12px;
+          color: #f87171;
+          word-break: break-all;
+          text-decoration: none;
+          line-height: 1.4;
+          flex: 1;
+        }
+        .link-card-url:hover {
+          text-decoration: underline;
+        }
+        .link-card-copy {
+          padding: 6px 12px;
+          border: none;
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.06);
+          color: #eaeef2;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.15s;
+          align-self: flex-start;
+        }
+        .link-card-copy:hover {
+          background: rgba(255, 255, 255, 0.12);
+        }
+        .profile-mini {
+          display: flex;
+          gap: 16px;
+          font-size: 13px;
+          color: #6b7280;
+          padding: 4px 0 8px 0;
         }
 
         /* ===== CONVERTER ===== */
@@ -1183,12 +1193,11 @@ export default function Home() {
             justify-content: center;
             text-align: center;
           }
-          .device-selector {
-            flex-direction: column;
-            align-items: stretch;
+          .links-grid {
+            grid-template-columns: 1fr;
           }
-          .device-select {
-            width: 100%;
+          .link-card {
+            padding: 12px 14px;
           }
         }
         @media (max-width: 400px) {
