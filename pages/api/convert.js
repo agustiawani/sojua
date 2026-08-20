@@ -1,45 +1,42 @@
 // pages/api/convert.js
-// Support: JSON Array, JSON Object, Raw String, Netscape (.txt)
+// Mendukung dua jenis data: Cookie dan Token langsung
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  let { cookie } = req.body;
-
+  const { cookie } = req.body;
   if (!cookie || typeof cookie !== 'string') {
-    return res.status(400).json({ error: 'Cookie string is required' });
+    return res.status(400).json({ error: 'Cookie atau Token string is required' });
   }
 
   // =====================================================
-  // PARSING COOKIE (TANPA DECODE)
+  // CEK APAKAH INPUT ADALAH TOKEN LANGSUNG
   // =====================================================
-  const parsedCookie = parseCookieInput(cookie);
+  const isToken = !cookie.includes('NetflixId=') && !cookie.includes('SecureNetflixId=');
 
-  // Debug: jika parsing menghasilkan string kosong
-  if (!parsedCookie) {
-    return res.status(400).json({
-      error: 'Gagal parsing cookie',
-      hint: 'Pastikan format cookie benar (JSON Array, JSON Object, Raw String, atau Netscape .txt)',
-      rawPreview: cookie.slice(0, 200),
+  if (isToken) {
+    console.log('[Convert] ✅ Mendeteksi token langsung');
+    return res.status(200).json({
+      success: true,
+      token: cookie.trim(),
+      url: `https://netflix.com/?nftoken=${cookie.trim()}`,
+      expiryHuman: 'Token Langsung',
+      profile: null,
+      type: 'token',
     });
   }
 
-  // Validasi: harus mengandung NetflixId
-  if (!parsedCookie.includes('NetflixId=')) {
-    return res.status(400).json({
-      error: 'Cookie tidak valid: tidak ditemukan NetflixId setelah parsing.',
-      parsedPreview: parsedCookie.slice(0, 300) + '...',
-      hint: 'Pastikan cookie berisi NetflixId.',
-    });
+  // =====================================================
+  // JIKA INPUT ADALAH COOKIE, PROSES SEPERTI BIASA
+  // =====================================================
+  if (!cookie.includes('NetflixId=')) {
+    return res.status(400).json({ error: 'Cookie tidak valid: tidak ditemukan NetflixId' });
   }
 
-  console.log('[Convert] Cookie parsed, length:', parsedCookie.length);
+  console.log('[Convert] 🔑 Mendeteksi cookie, mencoba generate...');
 
-  // =====================================================
-  // KIRIM REQUEST KE API NETFLIX
-  // =====================================================
   const API_URL = 'https://ios.prod.ftl.netflix.com/iosui/user/15.48';
   const QUERY_PARAMS = {
     appVersion: '15.48.1',
@@ -99,13 +96,14 @@ export default async function handler(req, res) {
 
   const headers = {
     ...BASE_HEADERS,
-    Cookie: parsedCookie,
+    Cookie: cookie.trim(),
   };
 
   try {
     const response = await fetch(url.toString(), {
       method: 'GET',
       headers,
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {
@@ -133,7 +131,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Ambil info profil
     let profileInfo = null;
     try {
       const profileUrl = new URL('https://ios.prod.ftl.netflix.com/iosui/profiles/current');
@@ -146,7 +143,7 @@ export default async function handler(req, res) {
 
       const profileHeaders = {
         ...BASE_HEADERS,
-        Cookie: parsedCookie,
+        Cookie: cookie.trim(),
       };
       const profileRes = await fetch(profileUrl.toString(), {
         method: 'GET',
@@ -186,6 +183,7 @@ export default async function handler(req, res) {
         ? expiryDate.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
         : 'Tidak diketahui',
       profile: profileInfo,
+      type: 'cookie',
     });
   } catch (error) {
     console.error('[Convert] Error:', error);
@@ -194,84 +192,4 @@ export default async function handler(req, res) {
       detail: error.message,
     });
   }
-}
-
-// =====================================================
-// FUNGSI PARSING COOKIE (TANPA DECODE)
-// =====================================================
-function parseCookieInput(rawInput) {
-  const trimmed = rawInput.trim();
-
-  // ===== 1. COBA PARSE SEBAGAI JSON =====
-  try {
-    const parsed = JSON.parse(trimmed);
-
-    if (Array.isArray(parsed)) {
-      const cookieParts = parsed
-        .filter((item) => item.name && item.value)
-        .map((item) => `${item.name}=${item.value}`);
-      if (cookieParts.length > 0) {
-        console.log('[Parser] ✅ JSON Array');
-        return cookieParts.join('; ');
-      }
-    }
-
-    if (typeof parsed === 'object' && parsed !== null) {
-      const cookieParts = Object.entries(parsed)
-        .filter(([key]) =>
-          ['NetflixId', 'SecureNetflixId', 'nfvdid', 'OptanonConsent'].includes(key)
-        )
-        .map(([key, value]) => `${key}=${value}`);
-      if (cookieParts.length > 0) {
-        console.log('[Parser] ✅ JSON Object');
-        return cookieParts.join('; ');
-      }
-    }
-  } catch (_) {}
-
-  // ===== 2. CEK RAW HTTP STRING =====
-  if (trimmed.includes('NetflixId=') || trimmed.includes('SecureNetflixId=')) {
-    console.log('[Parser] ✅ Raw HTTP String');
-    return trimmed;
-  }
-
-  // ===== 3. DETEKSI NETSCAPE (.txt) =====
-  const lines = trimmed
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  const isNetscape = lines.some(
-    (line) => line.includes('\t') && line.includes('.netflix.com')
-  );
-
-  if (isNetscape) {
-    console.log('[Parser] ✅ Netscape (.txt) format');
-    const cookieParts = [];
-    const requiredKeys = ['NetflixId', 'SecureNetflixId', 'nfvdid', 'OptanonConsent'];
-
-    for (const line of lines) {
-      const fields = line.split('\t');
-      if (fields.length >= 7) {
-        const name = fields[5].trim();
-        const value = fields[6].trim();
-
-        // 🔥 TIDAK DI-DECODE! Biarkan apa adanya
-        if (requiredKeys.includes(name) && value) {
-          cookieParts.push(`${name}=${value}`);
-        }
-      }
-    }
-
-    if (cookieParts.length > 0) {
-      console.log('[Parser] ✅ Netscape parsed, keys:', cookieParts.map(p => p.split('=')[0]).join(', '));
-      return cookieParts.join('; ');
-    } else {
-      console.log('[Parser] ⚠️ Netscape detected but no required keys found');
-    }
-  }
-
-  // ===== 4. FALLBACK =====
-  console.log('[Parser] ⚠️ Format tidak dikenali, return raw input');
-  return trimmed;
 }
