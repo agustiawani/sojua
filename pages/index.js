@@ -1,5 +1,5 @@
 // pages/index.js
-// Final version: Auto Generate
+// Final version: Auto Generate 3 Link + Converter + Netscape Converter + INFO
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
@@ -112,7 +112,7 @@ export default function Home() {
     }
   };
 
-  // ===== AUTO GENERATE =====
+  // ===== AUTO GENERATE (3 Link Sekaligus) =====
   const handleAutoGenerate = async () => {
     setAutoGenLoading(true);
     setAutoGenError('');
@@ -223,16 +223,19 @@ export default function Home() {
           <button className={`tab ${activeTab === 'netscape' ? 'active' : ''}`} onClick={() => setActiveTab('netscape')}>
             NETSCAPE
           </button>
+          <button className={`tab ${activeTab === 'info' ? 'active' : ''}`} onClick={() => setActiveTab('info')}>
+            INFO
+          </button>
         </div>
 
         {/* ============================================ */}
-        {/* TAB: AUTO GENERATE */}
+        {/* TAB: AUTO GENERATE (3 Link) */}
         {/* ============================================ */}
         {activeTab === 'auto' && (
           <div className="tab-content">
-            <div className="section-label">⚡ GENERATE</div>
+            <div className="section-label">⚡ GENERATE 3 LINK SEKALIGUS</div>
             <p className="hint">
-              Klik tombol di bawah untuk mendapatkan link NFToken Support PC, Android, TV
+              Klik tombol di bawah untuk mendapatkan 3 link NFToken (PC, Android, TV) dari satu cookie.
             </p>
 
             <div className="auto-generate-area">
@@ -241,7 +244,7 @@ export default function Home() {
                 onClick={handleAutoGenerate}
                 disabled={autoGenLoading}
               >
-                {autoGenLoading ? '⏳ Memproses...' : '⚡ Generate'}
+                {autoGenLoading ? '⏳ Memproses...' : '⚡ Generate 3 Link'}
               </button>
               {autoGenError && <div className="error-box">{autoGenError}</div>}
             </div>
@@ -436,7 +439,7 @@ export default function Home() {
         )}
 
         {/* ============================================ */}
-        {/* TAB: NETSCAPE CONVERTER (DENGAN COPY) */}
+        {/* TAB: NETSCAPE CONVERTER */}
         {/* ============================================ */}
         {activeTab === 'netscape' && (
           <div className="tab-content">
@@ -483,7 +486,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* ===== RAW COOKIE RESULT DENGAN COPY ===== */}
               {rawCookieResult && (
                 <div className="raw-result">
                   <div className="raw-result-header">
@@ -552,12 +554,116 @@ export default function Home() {
           </div>
         )}
 
+        {/* ============================================ */}
+        {/* TAB: INFO */}
+        {/* ============================================ */}
+        {activeTab === 'info' && (
+          <div className="tab-content info-tab">
+            <div className="section-label">📖 PANDUAN PENGGUNAAN</div>
+
+            {/* NFToken Info */}
+            <div className="info-card">
+              <h3>🔑 Apa itu NFToken?</h3>
+              <p>
+                NFToken (Netflix Token) adalah tautan khusus yang memungkinkan akses instan ke akun Netflix
+                tanpa perlu memasukkan email dan password. Cukup buka tautan di perangkat yang diinginkan,
+                dan Anda akan langsung masuk ke akun Netflix.
+              </p>
+            </div>
+
+            {/* Fitur */}
+            <div className="info-card">
+              <h3>⚡ Fitur yang Tersedia</h3>
+              <div className="feature-grid">
+                <div className="feature-item">
+                  <span className="feature-icon">🚀</span>
+                  <div>
+                    <strong>Auto Generate</strong>
+                    <p>Generate 3 link sekaligus (PC, Android, TV) dari cookie yang tersimpan.</p>
+                  </div>
+                </div>
+                <div className="feature-item">
+                  <span className="feature-icon">🔄</span>
+                  <div>
+                    <strong>Converter</strong>
+                    <p>Konversi cookie manual (JSON, Object, Raw String) menjadi NFToken.</p>
+                  </div>
+                </div>
+                <div className="feature-item">
+                  <span className="feature-icon">📄</span>
+                  <div>
+                    <strong>Netscape Converter</strong>
+                    <p>Konversi cookie format Netscape (.txt) ke Raw Cookie, lalu generate token.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Cara Pakai */}
+            <div className="info-card">
+              <h3>💻 Cara Menggunakan NFToken</h3>
+
+              <div className="device-guide">
+                <div className="device-item">
+                  <span className="device-icon">💻</span>
+                  <div>
+                    <strong>PC / Browser</strong>
+                    <p>Salin/Buka tautan PC di atas → tempel di browser → selesai!</p>
+                  </div>
+                </div>
+
+                <div className="device-item">
+                  <span className="device-icon">📱</span>
+                  <div>
+                    <strong>iPhone (iOS)</strong>
+                    <p>Buka Safari → tempel tautan Android → ketuk "Buka"</p>
+                    <p className="note">⚠️ <em>Jangan gunakan Chrome di iOS — Safari paling cocok untuk Netflix</em></p>
+                  </div>
+                </div>
+
+                <div className="device-item">
+                  <span className="device-icon">🤖</span>
+                  <div>
+                    <strong>Android</strong>
+                    <p>Buka browser apa saja (Chrome/Samsung/Edge) → tempel tautan Android → selesai!</p>
+                  </div>
+                </div>
+
+                <div className="device-item">
+                  <span className="device-icon">📺</span>
+                  <div>
+                    <strong>Smart TV</strong>
+                    <p>Buka aplikasi Netflix → Pengaturan → Masuk → masukkan kode 4 digit yang muncul di layar TV</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Peringatan */}
+            <div className="info-card warning-card">
+              <h3>⚠️ Catatan Penting</h3>
+              <ul>
+                <li>⏰ Tautan NFToken <strong>kedaluwarsa dalam ±1 jam</strong> — segera simpan selagi masih aktif!</li>
+                <li>🔒 Jangan bagikan tautan NFToken ke orang lain — siapa pun yang memegang tautan bisa mengakses akun Anda.</li>
+                <li>📱 Gunakan tautan sesuai perangkat agar pengalaman optimal.</li>
+                <li>🔄 Jika tautan tidak berfungsi, generate ulang untuk mendapatkan tautan baru.</li>
+              </ul>
+            </div>
+
+            {/* Footer Info */}
+            <div className="info-footer">
+              <p>Dibuat dengan ❤️ untuk keperluan edukasi.</p>
+              <p>© 2026 NFTOKEN</p>
+            </div>
+          </div>
+        )}
+
         <footer>
           <p>© 2026 NFTOKEN</p>
         </footer>
       </div>
 
-      {/* ===== STYLES ===== */}
+      {/* ===== STYLES (dengan tambahan untuk INFO tab) ===== */}
       <style jsx>{`
         * {
           box-sizing: border-box;
@@ -677,12 +783,6 @@ export default function Home() {
           text-align: right;
           margin-top: -8px;
           font-family: monospace;
-        }
-        .empty-msg {
-          color: #6b7280;
-          font-size: 14px;
-          text-align: center;
-          padding: 20px 0;
         }
 
         /* ===== AUTO GENERATE ===== */
@@ -1106,7 +1206,6 @@ export default function Home() {
           cursor: not-allowed;
         }
 
-        /* ===== RAW RESULT (DENGAN COPY) ===== */
         .raw-result {
           padding: 12px;
           background: rgba(16, 185, 129, 0.05);
@@ -1162,6 +1261,134 @@ export default function Home() {
           color: #f87171;
           font-size: 14px;
           word-break: break-word;
+        }
+
+        /* ============================================ */
+        /* ===== TAB INFO ===== */
+        /* ============================================ */
+        .info-tab {
+          gap: 20px;
+        }
+        .info-card {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 16px;
+          padding: 18px 20px;
+        }
+        .info-card h3 {
+          font-size: 16px;
+          font-weight: 700;
+          color: #eaeef2;
+          margin-bottom: 10px;
+        }
+        .info-card p {
+          font-size: 14px;
+          color: #b0b8c5;
+          line-height: 1.7;
+        }
+        .info-card ul {
+          list-style: none;
+          padding: 0;
+        }
+        .info-card ul li {
+          font-size: 14px;
+          color: #b0b8c5;
+          padding: 6px 0;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+          line-height: 1.6;
+        }
+        .info-card ul li:last-child {
+          border-bottom: none;
+        }
+
+        .warning-card {
+          border-color: rgba(245, 158, 11, 0.2);
+          background: rgba(245, 158, 11, 0.05);
+        }
+        .warning-card h3 {
+          color: #f59e0b;
+        }
+        .warning-card ul li {
+          color: #eaeef2;
+        }
+        .warning-card ul li strong {
+          color: #f59e0b;
+        }
+
+        .feature-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        .feature-item {
+          display: flex;
+          gap: 12px;
+          align-items: flex-start;
+          padding: 8px 0;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        .feature-item:last-child {
+          border-bottom: none;
+        }
+        .feature-icon {
+          font-size: 24px;
+          flex-shrink: 0;
+        }
+        .feature-item strong {
+          display: block;
+          font-size: 14px;
+          color: #eaeef2;
+        }
+        .feature-item p {
+          font-size: 13px;
+          color: #b0b8c5;
+          margin: 2px 0 0 0;
+        }
+
+        .device-guide {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        .device-item {
+          display: flex;
+          gap: 12px;
+          align-items: flex-start;
+          padding: 8px 0;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        .device-item:last-child {
+          border-bottom: none;
+        }
+        .device-icon {
+          font-size: 24px;
+          flex-shrink: 0;
+        }
+        .device-item strong {
+          display: block;
+          font-size: 14px;
+          color: #eaeef2;
+        }
+        .device-item p {
+          font-size: 13px;
+          color: #b0b8c5;
+          margin: 2px 0 0 0;
+        }
+        .device-item .note {
+          font-size: 12px;
+          color: #f59e0b;
+          margin-top: 4px;
+        }
+
+        .info-footer {
+          text-align: center;
+          font-size: 13px;
+          color: #6b7280;
+          padding-top: 8px;
+          border-top: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        .info-footer p {
+          margin: 4px 0;
         }
 
         footer {
@@ -1236,6 +1463,10 @@ export default function Home() {
           .raw-result-header {
             flex-direction: column;
             align-items: flex-start;
+          }
+          .feature-grid,
+          .device-guide {
+            grid-template-columns: 1fr;
           }
         }
         @media (max-width: 400px) {
