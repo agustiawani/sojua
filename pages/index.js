@@ -211,7 +211,7 @@ export default function Home() {
           <span className="tagline">AUTO GENERATOR</span>
         </header>
 
-        {/* TABS - lebih ramah mobile */}
+        {/* TABS */}
         <div className="tabs" role="tablist">
           <button
             className={`tab ${activeTab === 'auto' ? 'active' : ''}`}
@@ -578,7 +578,7 @@ export default function Home() {
         )}
 
         {/* ============================================ */}
-        {/* TAB: INFO - lebih rapi dan readable */}
+        {/* TAB: INFO */}
         {/* ============================================ */}
         {activeTab === 'info' && (
           <div className="tab-content info-tab">
@@ -703,20 +703,22 @@ export default function Home() {
           display: flex;
           justify-content: center;
           align-items: center;
-          padding: clamp(12px, 4vw, 24px);
+          padding: clamp(12px, 3vw, 40px);
           margin: 0;
         }
 
         .container {
-          max-width: 820px;
+          max-width: 720px;
           width: 100%;
           background: rgba(18, 18, 30, 0.92);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
-          border-radius: clamp(20px, 4vw, 32px);
-          padding: clamp(16px, 3vw, 32px) clamp(14px, 3vw, 28px);
+          border-radius: clamp(20px, 3vw, 32px);
+          padding: clamp(16px, 3vw, 36px) clamp(14px, 3vw, 32px);
           border: 1px solid rgba(255, 255, 255, 0.06);
           box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+          margin: 0 auto;
+          transition: all 0.2s ease;
         }
 
         /* ===== HEADER ===== */
@@ -726,8 +728,8 @@ export default function Home() {
           justify-content: space-between;
           align-items: center;
           gap: 8px 12px;
-          margin-bottom: clamp(16px, 3vw, 24px);
-          padding-bottom: clamp(12px, 2vw, 16px);
+          margin-bottom: clamp(16px, 2.5vw, 28px);
+          padding-bottom: clamp(12px, 1.5vw, 18px);
           border-bottom: 1px solid rgba(255, 255, 255, 0.04);
         }
 
@@ -738,13 +740,13 @@ export default function Home() {
         }
 
         .logo-icon {
-          font-size: clamp(20px, 4vw, 26px);
+          font-size: clamp(20px, 3vw, 28px);
           color: #e50914;
           font-weight: 700;
         }
 
         .logo-text {
-          font-size: clamp(18px, 4vw, 24px);
+          font-size: clamp(18px, 3vw, 26px);
           font-weight: 700;
           letter-spacing: 1px;
           background: linear-gradient(135deg, #e50914, #f5a623);
@@ -754,13 +756,13 @@ export default function Home() {
         }
 
         .tagline {
-          font-size: clamp(9px, 2vw, 11px);
+          font-size: clamp(9px, 1.2vw, 12px);
           font-weight: 600;
           color: #6b7280;
           letter-spacing: 2px;
           text-transform: uppercase;
           background: rgba(255, 255, 255, 0.04);
-          padding: 4px 12px;
+          padding: 4px 14px;
           border-radius: 20px;
           border: 1px solid rgba(255, 255, 255, 0.04);
         }
@@ -772,7 +774,7 @@ export default function Home() {
           background: rgba(255, 255, 255, 0.04);
           border-radius: 14px;
           padding: 4px;
-          margin-bottom: clamp(20px, 4vw, 28px);
+          margin-bottom: clamp(20px, 3vw, 32px);
           border: 1px solid rgba(255, 255, 255, 0.04);
           flex-wrap: wrap;
         }
@@ -785,7 +787,7 @@ export default function Home() {
           border-radius: 11px;
           background: transparent;
           color: #6b7280;
-          font-size: clamp(10px, 1.6vw, 12px);
+          font-size: clamp(10px, 1.2vw, 13px);
           font-weight: 600;
           letter-spacing: 0.3px;
           cursor: pointer;
@@ -794,12 +796,12 @@ export default function Home() {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 4px;
+          gap: 6px;
           touch-action: manipulation;
         }
 
         .tab .tab-icon {
-          font-size: clamp(14px, 2vw, 16px);
+          font-size: clamp(14px, 1.6vw, 18px);
         }
 
         .tab .tab-label {
@@ -812,6 +814,19 @@ export default function Home() {
             letter-spacing: 0.2px;
           }
           .tab {
+            padding: 8px 4px;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .tab .tab-label {
+            display: none;
+          }
+          .tab .tab-icon {
+            font-size: 18px;
+          }
+          .tab {
+            min-width: 44px;
             padding: 8px 4px;
           }
         }
@@ -830,11 +845,11 @@ export default function Home() {
         .tab-content {
           display: flex;
           flex-direction: column;
-          gap: clamp(12px, 2.5vw, 20px);
+          gap: clamp(12px, 2vw, 22px);
         }
 
         .section-label {
-          font-size: clamp(11px, 1.8vw, 13px);
+          font-size: clamp(11px, 1.4vw, 14px);
           font-weight: 700;
           color: #6b7280;
           letter-spacing: 1.5px;
@@ -842,10 +857,10 @@ export default function Home() {
         }
 
         .hint {
-          font-size: clamp(12px, 1.8vw, 14px);
+          font-size: clamp(12px, 1.4vw, 15px);
           color: #6b7280;
           margin-top: -4px;
-          line-height: 1.5;
+          line-height: 1.6;
         }
 
         .char-counter {
@@ -862,16 +877,16 @@ export default function Home() {
           flex-direction: column;
           gap: 12px;
           align-items: center;
-          padding: clamp(8px, 2vw, 16px) 0;
+          padding: clamp(8px, 1.5vw, 20px) 0;
         }
 
         .btn-generate-auto {
           width: 100%;
-          max-width: 400px;
-          padding: clamp(14px, 2.5vw, 18px) 32px;
+          max-width: 420px;
+          padding: clamp(14px, 2vw, 20px) 32px;
           border: none;
           border-radius: 16px;
-          font-size: clamp(16px, 2.5vw, 20px);
+          font-size: clamp(16px, 2vw, 22px);
           font-weight: 700;
           cursor: pointer;
           transition: all 0.25s ease;
@@ -882,6 +897,7 @@ export default function Home() {
           letter-spacing: 1px;
           min-height: 56px;
           touch-action: manipulation;
+          text-align: center;
         }
 
         .btn-generate-auto:hover:not(:disabled) {
@@ -899,7 +915,7 @@ export default function Home() {
         .links-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
-          gap: clamp(10px, 2vw, 14px);
+          gap: clamp(10px, 1.5vw, 16px);
           margin-top: 8px;
         }
 
@@ -913,7 +929,7 @@ export default function Home() {
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(255, 255, 255, 0.06);
           border-radius: 14px;
-          padding: clamp(12px, 2vw, 16px);
+          padding: clamp(12px, 1.5vw, 18px);
           display: flex;
           flex-direction: column;
           gap: 8px;
@@ -926,18 +942,18 @@ export default function Home() {
         }
 
         .link-card-header {
-          font-size: clamp(12px, 1.8vw, 14px);
+          font-size: clamp(12px, 1.4vw, 15px);
           font-weight: 700;
           color: #9ca3af;
           letter-spacing: 0.3px;
         }
 
         .link-card-url {
-          font-size: clamp(11px, 1.6vw, 13px);
+          font-size: clamp(11px, 1.2vw, 14px);
           color: #f87171;
           word-break: break-all;
           text-decoration: none;
-          line-height: 1.4;
+          line-height: 1.5;
           flex: 1;
         }
 
@@ -946,12 +962,12 @@ export default function Home() {
         }
 
         .link-card-copy {
-          padding: 8px 14px;
+          padding: 8px 16px;
           border: none;
           border-radius: 8px;
           background: rgba(255, 255, 255, 0.06);
           color: #eaeef2;
-          font-size: clamp(11px, 1.6vw, 13px);
+          font-size: clamp(11px, 1.2vw, 14px);
           font-weight: 500;
           cursor: pointer;
           transition: all 0.15s;
@@ -967,8 +983,8 @@ export default function Home() {
         .profile-mini {
           display: flex;
           flex-wrap: wrap;
-          gap: 12px 20px;
-          font-size: clamp(12px, 1.8vw, 14px);
+          gap: 12px 24px;
+          font-size: clamp(12px, 1.4vw, 15px);
           color: #6b7280;
           padding: 4px 0 8px 0;
         }
@@ -976,8 +992,8 @@ export default function Home() {
         /* ===== CONVERTER ===== */
         textarea {
           width: 100%;
-          padding: clamp(14px, 2vw, 18px);
-          font-size: clamp(12px, 1.6vw, 14px);
+          padding: clamp(14px, 1.5vw, 20px);
+          font-size: clamp(12px, 1.2vw, 15px);
           font-family: 'SF Mono', 'Fira Code', monospace;
           border: 1.5px solid rgba(255, 255, 255, 0.06);
           border-radius: 16px;
@@ -985,7 +1001,7 @@ export default function Home() {
           color: #eaeef2;
           resize: vertical;
           transition: border-color 0.2s, box-shadow 0.2s;
-          min-height: clamp(120px, 20vw, 160px);
+          min-height: clamp(120px, 15vw, 180px);
           line-height: 1.7;
           white-space: pre-wrap;
           word-break: break-all;
@@ -1021,8 +1037,8 @@ export default function Home() {
         .save-section input {
           flex: 1;
           min-width: 120px;
-          padding: clamp(10px, 1.6vw, 14px);
-          font-size: clamp(12px, 1.6vw, 14px);
+          padding: clamp(10px, 1.2vw, 16px);
+          font-size: clamp(12px, 1.2vw, 15px);
           border: 1.5px solid rgba(255, 255, 255, 0.06);
           border-radius: 12px;
           background: rgba(255, 255, 255, 0.04);
@@ -1041,8 +1057,8 @@ export default function Home() {
         }
 
         .btn-save {
-          padding: clamp(10px, 1.6vw, 14px) clamp(16px, 2vw, 24px);
-          font-size: clamp(12px, 1.6vw, 14px);
+          padding: clamp(10px, 1.2vw, 16px) clamp(16px, 1.5vw, 28px);
+          font-size: clamp(12px, 1.2vw, 15px);
           font-weight: 600;
           border: none;
           border-radius: 12px;
@@ -1066,8 +1082,8 @@ export default function Home() {
 
         .btn-forge {
           width: 100%;
-          padding: clamp(14px, 2vw, 18px);
-          font-size: clamp(15px, 2.2vw, 18px);
+          padding: clamp(14px, 1.5vw, 20px);
+          font-size: clamp(15px, 1.8vw, 19px);
           font-weight: 700;
           border: none;
           border-radius: 14px;
@@ -1080,6 +1096,7 @@ export default function Home() {
           box-shadow: 0 6px 24px rgba(229, 9, 20, 0.25);
           min-height: 52px;
           touch-action: manipulation;
+          text-align: center;
         }
 
         .btn-forge:hover:not(:disabled) {
@@ -1096,7 +1113,7 @@ export default function Home() {
 
         /* ===== RESULT BOX ===== */
         .result-box {
-          padding: clamp(16px, 2.5vw, 22px);
+          padding: clamp(16px, 2vw, 26px);
           background: rgba(16, 185, 129, 0.06);
           border-radius: 16px;
           border: 1px solid rgba(16, 185, 129, 0.15);
@@ -1128,7 +1145,7 @@ export default function Home() {
         }
 
         .result-badge {
-          font-size: clamp(16px, 2.5vw, 20px);
+          font-size: clamp(16px, 2vw, 22px);
           font-weight: 700;
           color: #10b981;
         }
@@ -1141,7 +1158,7 @@ export default function Home() {
         }
 
         .result-label {
-          font-size: clamp(10px, 1.4vw, 12px);
+          font-size: clamp(10px, 1.2vw, 13px);
           font-weight: 700;
           color: #9ca3af;
           text-transform: uppercase;
@@ -1149,7 +1166,7 @@ export default function Home() {
         }
 
         .result-value {
-          font-size: clamp(13px, 1.8vw, 15px);
+          font-size: clamp(13px, 1.4vw, 16px);
           word-break: break-all;
           color: #eaeef2;
         }
@@ -1166,7 +1183,7 @@ export default function Home() {
           text-decoration: none;
           font-weight: 500;
           word-break: break-all;
-          font-size: clamp(13px, 1.8vw, 15px);
+          font-size: clamp(13px, 1.4vw, 16px);
         }
 
         .result-link:hover {
@@ -1175,7 +1192,7 @@ export default function Home() {
 
         .result-token {
           font-family: 'SF Mono', 'Fira Code', monospace;
-          font-size: clamp(11px, 1.5vw, 13px);
+          font-size: clamp(11px, 1.2vw, 14px);
           background: rgba(255, 255, 255, 0.04);
           padding: 6px 10px;
           border-radius: 8px;
@@ -1188,7 +1205,7 @@ export default function Home() {
         .copy-btn {
           background: rgba(255, 255, 255, 0.04);
           border: none;
-          font-size: clamp(16px, 2.5vw, 20px);
+          font-size: clamp(16px, 2vw, 22px);
           cursor: pointer;
           padding: 6px 10px;
           border-radius: 8px;
@@ -1213,7 +1230,7 @@ export default function Home() {
         .profile-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: clamp(8px, 1.5vw, 12px);
+          gap: clamp(8px, 1.2vw, 14px);
         }
 
         @media (max-width: 480px) {
@@ -1224,7 +1241,7 @@ export default function Home() {
 
         .profile-item {
           background: rgba(255, 255, 255, 0.03);
-          padding: clamp(8px, 1.5vw, 12px);
+          padding: clamp(8px, 1.2vw, 14px);
           border-radius: 10px;
           display: flex;
           flex-direction: column;
@@ -1233,7 +1250,7 @@ export default function Home() {
         }
 
         .profile-label {
-          font-size: clamp(9px, 1.2vw, 11px);
+          font-size: clamp(9px, 1vw, 12px);
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.3px;
@@ -1241,7 +1258,7 @@ export default function Home() {
         }
 
         .profile-value {
-          font-size: clamp(13px, 1.8vw, 15px);
+          font-size: clamp(13px, 1.4vw, 16px);
           font-weight: 500;
           color: #eaeef2;
         }
@@ -1275,7 +1292,7 @@ export default function Home() {
         }
 
         .saved-name {
-          font-size: clamp(11px, 1.6vw, 13px);
+          font-size: clamp(11px, 1.2vw, 14px);
           font-weight: 500;
           cursor: pointer;
           color: #eaeef2;
@@ -1289,7 +1306,7 @@ export default function Home() {
           background: transparent;
           border: none;
           cursor: pointer;
-          font-size: clamp(12px, 1.6vw, 14px);
+          font-size: clamp(12px, 1.2vw, 15px);
           padding: 2px 4px;
           border-radius: 4px;
           color: #6b7280;
@@ -1320,7 +1337,7 @@ export default function Home() {
         }
 
         .btn-parse {
-          padding: clamp(10px, 1.6vw, 14px) clamp(16px, 2vw, 24px);
+          padding: clamp(10px, 1.2vw, 16px) clamp(16px, 1.5vw, 28px);
           background: #3b82f6;
           border: none;
           border-radius: 10px;
@@ -1331,6 +1348,7 @@ export default function Home() {
           min-height: 44px;
           touch-action: manipulation;
           flex: 1 1 auto;
+          text-align: center;
         }
 
         .btn-parse:hover:not(:disabled) {
@@ -1344,7 +1362,7 @@ export default function Home() {
         }
 
         .btn-generate-raw {
-          padding: clamp(10px, 1.6vw, 14px) clamp(16px, 2vw, 24px);
+          padding: clamp(10px, 1.2vw, 16px) clamp(16px, 1.5vw, 28px);
           background: #e50914;
           border: none;
           border-radius: 10px;
@@ -1355,6 +1373,7 @@ export default function Home() {
           min-height: 44px;
           touch-action: manipulation;
           flex: 1 1 auto;
+          text-align: center;
         }
 
         .btn-generate-raw:hover:not(:disabled) {
@@ -1384,7 +1403,7 @@ export default function Home() {
         }
 
         .raw-label {
-          font-size: clamp(12px, 1.6vw, 14px);
+          font-size: clamp(12px, 1.2vw, 15px);
           color: #9ca3af;
         }
 
@@ -1394,7 +1413,7 @@ export default function Home() {
           border-radius: 6px;
           background: rgba(255, 255, 255, 0.06);
           color: #eaeef2;
-          font-size: clamp(11px, 1.5vw, 13px);
+          font-size: clamp(11px, 1.2vw, 14px);
           font-weight: 500;
           cursor: pointer;
           transition: all 0.15s;
@@ -1409,7 +1428,7 @@ export default function Home() {
         .raw-cookie {
           display: block;
           word-break: break-all;
-          font-size: clamp(11px, 1.4vw, 13px);
+          font-size: clamp(11px, 1.2vw, 14px);
           color: #eaeef2;
           background: rgba(0, 0, 0, 0.2);
           padding: 8px;
@@ -1422,40 +1441,41 @@ export default function Home() {
 
         /* ===== ERROR ===== */
         .error-box {
-          padding: clamp(12px, 2vw, 16px);
+          padding: clamp(12px, 1.5vw, 18px);
           background: rgba(229, 9, 20, 0.1);
           border-left: 4px solid #e50914;
           border-radius: 12px;
           color: #f87171;
-          font-size: clamp(13px, 1.8vw, 15px);
+          font-size: clamp(13px, 1.4vw, 16px);
           word-break: break-word;
+          width: 100%;
         }
 
         /* ============================================ */
         /* ===== TAB INFO ===== */
         /* ============================================ */
         .info-tab {
-          gap: clamp(16px, 3vw, 24px);
+          gap: clamp(16px, 2.5vw, 28px);
         }
 
         .info-card {
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(255, 255, 255, 0.06);
           border-radius: 16px;
-          padding: clamp(14px, 2.5vw, 20px);
+          padding: clamp(14px, 2vw, 24px);
         }
 
         .info-card h3 {
-          font-size: clamp(15px, 2.2vw, 18px);
+          font-size: clamp(15px, 1.8vw, 20px);
           font-weight: 700;
           color: #eaeef2;
-          margin-bottom: clamp(8px, 1.5vw, 12px);
+          margin-bottom: clamp(8px, 1.2vw, 14px);
         }
 
         .info-card p {
-          font-size: clamp(13px, 1.8vw, 15px);
+          font-size: clamp(13px, 1.4vw, 16px);
           color: #b0b8c5;
-          line-height: 1.7;
+          line-height: 1.8;
         }
 
         .info-card ul {
@@ -1464,11 +1484,11 @@ export default function Home() {
         }
 
         .info-card ul li {
-          font-size: clamp(13px, 1.8vw, 15px);
+          font-size: clamp(13px, 1.4vw, 16px);
           color: #b0b8c5;
-          padding: 6px 0;
+          padding: 8px 0;
           border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-          line-height: 1.6;
+          line-height: 1.7;
         }
 
         .info-card ul li:last-child {
@@ -1511,18 +1531,18 @@ export default function Home() {
         }
 
         .feature-icon {
-          font-size: clamp(22px, 4vw, 28px);
+          font-size: clamp(22px, 3vw, 30px);
           flex-shrink: 0;
         }
 
         .feature-item strong {
           display: block;
-          font-size: clamp(13px, 1.8vw, 15px);
+          font-size: clamp(13px, 1.4vw, 16px);
           color: #eaeef2;
         }
 
         .feature-item p {
-          font-size: clamp(12px, 1.6vw, 14px);
+          font-size: clamp(12px, 1.2vw, 15px);
           color: #b0b8c5;
           margin: 2px 0 0 0;
         }
@@ -1546,31 +1566,31 @@ export default function Home() {
         }
 
         .device-icon {
-          font-size: clamp(22px, 4vw, 28px);
+          font-size: clamp(22px, 3vw, 30px);
           flex-shrink: 0;
         }
 
         .device-item strong {
           display: block;
-          font-size: clamp(13px, 1.8vw, 15px);
+          font-size: clamp(13px, 1.4vw, 16px);
           color: #eaeef2;
         }
 
         .device-item p {
-          font-size: clamp(12px, 1.6vw, 14px);
+          font-size: clamp(12px, 1.2vw, 15px);
           color: #b0b8c5;
           margin: 2px 0 0 0;
         }
 
         .device-item .note {
-          font-size: clamp(11px, 1.4vw, 13px);
+          font-size: clamp(11px, 1.2vw, 14px);
           color: #f59e0b;
           margin-top: 4px;
         }
 
         .info-footer {
           text-align: center;
-          font-size: clamp(12px, 1.6vw, 14px);
+          font-size: clamp(12px, 1.4vw, 15px);
           color: #6b7280;
           padding-top: 8px;
           border-top: 1px solid rgba(255, 255, 255, 0.04);
@@ -1582,19 +1602,26 @@ export default function Home() {
 
         /* ===== FOOTER ===== */
         footer {
-          margin-top: clamp(24px, 4vw, 32px);
-          padding-top: clamp(12px, 2vw, 16px);
+          margin-top: clamp(24px, 3vw, 40px);
+          padding-top: clamp(12px, 1.5vw, 20px);
           border-top: 1px solid rgba(255, 255, 255, 0.04);
           text-align: center;
         }
 
         footer p {
-          font-size: clamp(11px, 1.4vw, 13px);
+          font-size: clamp(11px, 1.2vw, 14px);
           color: #4b5563;
           letter-spacing: 1px;
         }
 
         /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+          .container {
+            max-width: 100%;
+            padding: 20px 16px;
+          }
+        }
+
         @media (max-width: 480px) {
           .container {
             padding: 16px 12px;
@@ -1646,22 +1673,15 @@ export default function Home() {
             grid-template-columns: 1fr;
           }
 
-          .header .tagline {
+          header .tagline {
             font-size: 8px;
             padding: 2px 8px;
           }
         }
 
-        @media (max-width: 380px) {
-          .tab .tab-label {
-            display: none;
-          }
-          .tab .tab-icon {
-            font-size: 18px;
-          }
-          .tab {
-            min-width: 44px;
-            padding: 8px 4px;
+        @media (min-width: 769px) {
+          .container {
+            padding: 36px 32px;
           }
         }
       `}</style>
