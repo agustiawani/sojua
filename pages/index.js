@@ -1,5 +1,4 @@
 // pages/index.js
-// Final version: Auto Generate 3 Link + Converter + Netscape Converter + INFO
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
@@ -233,9 +232,9 @@ export default function Home() {
         {/* ============================================ */}
         {activeTab === 'auto' && (
           <div className="tab-content">
-            <div className="section-label">⚡ GENERATE 3 LINK SEKALIGUS</div>
+            <div className="section-label">⚡ GENERATE Link NFToken</div>
             <p className="hint">
-              Klik tombol di bawah untuk mendapatkan 3 link NFToken (PC, Android, TV) dari satu cookie.
+              Klik tombol di bawah untuk mendapatkan link NFToken Support PC, Android, TV
             </p>
 
             <div className="auto-generate-area">
@@ -244,7 +243,7 @@ export default function Home() {
                 onClick={handleAutoGenerate}
                 disabled={autoGenLoading}
               >
-                {autoGenLoading ? '⏳ Memproses...' : '⚡ Generate 3 Link'}
+                {autoGenLoading ? '⏳ Memproses...' : '⚡ Generate'}
               </button>
               {autoGenError && <div className="error-box">{autoGenError}</div>}
             </div>
@@ -652,7 +651,7 @@ export default function Home() {
 
             {/* Footer Info */}
             <div className="info-footer">
-              <p>Dibuat dengan ❤️ untuk keperluan edukasi.</p>
+              <p>Dibuat dengan ❤️</p>
               <p>© 2026 NFTOKEN</p>
             </div>
           </div>
