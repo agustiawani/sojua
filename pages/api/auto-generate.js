@@ -1,8 +1,14 @@
 // pages/api/auto-generate.js
-// Mendukung dua jenis data: Cookie dan Token langsung
+// Versi dengan rotasi acak dan hindari duplikasi beruntun
 
 import fs from 'fs';
 import path from 'path';
+
+// ===== GLOBAL BUFFER (untuk menghindari duplikasi beruntun) =====
+// Buffer ini akan diisi dengan ID item yang baru saja dipakai
+// Ukuran buffer = 5 (bisa disesuaikan)
+const RECENT_BUFFER_SIZE = 5;
+const recentItems = []; // akan diisi dengan indeks item yang baru dipakai
 
 // =====================================================
 // KONSTANTA
@@ -62,7 +68,7 @@ const BASE_HEADERS = {
 };
 
 // =====================================================
-// FUNGSI BACA FILE COOKIE / TOKEN
+// FUNGSI BACA FILE
 // =====================================================
 function readDataFile() {
   try {
@@ -82,10 +88,9 @@ function readDataFile() {
 }
 
 // =====================================================
-// FUNGSI CEK APAKAH DATA ADALAH TOKEN (bukan cookie)
+// FUNGSI CEK APAKAH DATA ADALAH TOKEN
 // =====================================================
 function isToken(data) {
-  // Jika tidak mengandung NetflixId atau SecureNetflixId, maka dianggap token
   return !data.includes('NetflixId=') && !data.includes('SecureNetflixId=');
 }
 
@@ -167,10 +172,10 @@ export default async function handler(req, res) {
   }
 
   console.log('[Auto-Generate] ========================================');
-  console.log('[Auto-Generate] Memulai proses generate 3 link...');
+  console.log('[Auto-Generate] Memulai proses generate...');
 
   try {
-    // 1. Baca file data (cookie atau token)
+    // 1. Baca data
     const items = readDataFile();
     if (items.length === 0) {
       return res.status(404).json({
@@ -181,22 +186,43 @@ export default async function handler(req, res) {
 
     console.log(`[Auto-Generate] Total item: ${items.length}`);
 
-    // 2. Acak dan coba (max 5 percobaan)
+    // 2. Siapkan daftar indeks yang tersedia (tidak ada di recent buffer)
+    const availableIndices = [];
+    for (let i = 0; i < items.length; i++) {
+      if (!recentItems.includes(i)) {
+        availableIndices.push(i);
+      }
+    }
+
+    // Jika semua item ada di buffer (misal total item <= buffer size), maka abaikan buffer
+    const candidateIndices = availableIndices.length > 0 ? availableIndices : items.map((_, i) => i);
+
+    // 3. Acak dan coba (max 5 percobaan)
     let lastError = null;
 
-    for (let attempt = 0; attempt < Math.min(5, items.length); attempt++) {
+    // Acak urutan candidateIndices
+    const shuffledCandidates = candidateIndices.sort(() => Math.random() - 0.5);
+
+    for (let attempt = 0; attempt < Math.min(5, shuffledCandidates.length); attempt++) {
+      const idx = shuffledCandidates[attempt];
+      const item = items[idx];
+      console.log(`[Auto-Generate] Percobaan ${attempt + 1}, item #${idx + 1}`);
+
       try {
-        const randomIndex = Math.floor(Math.random() * items.length);
-        const selectedItem = items[randomIndex];
-        console.log(`[Auto-Generate] Percobaan ${attempt + 1}, item #${randomIndex + 1}`);
-
         let result = null;
+        let isTokenItem = isToken(item);
 
-        // --- CEK APAKAH INI TOKEN LANGSUNG ---
-        if (isToken(selectedItem)) {
-          console.log('[Auto-Generate] ✅ Mendeteksi token langsung');
-          const token = selectedItem.trim();
+        if (isTokenItem) {
+          // Token langsung
+          console.log('[Auto-Generate] ✅ Menggunakan token langsung');
+          const token = item.trim();
           const links = generateThreeLinks(token);
+
+          // Tambahkan ke buffer recent
+          recentItems.push(idx);
+          if (recentItems.length > RECENT_BUFFER_SIZE) {
+            recentItems.shift(); // hapus yang paling lama
+          }
 
           return res.status(200).json({
             success: true,
@@ -206,25 +232,30 @@ export default async function handler(req, res) {
             links: links,
             type: 'token',
           });
+        } else {
+          // Cookie -> generate token
+          console.log('[Auto-Generate] 🔑 Cookie, mencoba generate...');
+          result = await generateTokenFromCookie(item);
+
+          if (result && result.success) {
+            const links = generateThreeLinks(result.token);
+
+            // Tambahkan ke buffer recent
+            recentItems.push(idx);
+            if (recentItems.length > RECENT_BUFFER_SIZE) {
+              recentItems.shift();
+            }
+
+            return res.status(200).json({
+              success: true,
+              token: result.token,
+              expiry: result.expiryHuman,
+              profile: result.profile,
+              links: links,
+              type: 'cookie',
+            });
+          }
         }
-
-        // --- JIKA INI COOKIE, GENERATE TOKEN ---
-        console.log('[Auto-Generate] 🔑 Mendeteksi cookie, mencoba generate...');
-        result = await generateTokenFromCookie(selectedItem);
-
-        if (result && result.success) {
-          const links = generateThreeLinks(result.token);
-          return res.status(200).json({
-            success: true,
-            token: result.token,
-            expiry: result.expiryHuman,
-            profile: result.profile,
-            links: links,
-            type: 'cookie',
-          });
-        }
-
-        throw new Error('Gagal generate dari cookie');
       } catch (error) {
         lastError = error;
         console.log(`[Auto-Generate] ❌ Percobaan ${attempt + 1} gagal: ${error.message}`);
@@ -232,7 +263,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // Jika semua percobaan gagal
+    // Jika semua gagal
     console.log('[Auto-Generate] ❌ Semua percobaan gagal');
     return res.status(500).json({
       success: false,
