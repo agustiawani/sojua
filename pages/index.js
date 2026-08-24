@@ -578,7 +578,7 @@ export default function Home() {
         )}
 
         {/* ============================================ */}
-        {/* TAB: INFO */}
+        {/* TAB: INFO (DENGAN TUTORIAL COOKIE-EDITOR) */}
         {/* ============================================ */}
         {activeTab === 'info' && (
           <div className="tab-content info-tab">
@@ -622,7 +622,59 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Cara Pakai */}
+            {/* 🆕 TUTORIAL COOKIE-EDITOR */}
+            <div className="info-card tutorial-card">
+              <h3>🍪 Cara Mendapatkan Cookie dengan Cookie-Editor</h3>
+              <p className="tutorial-intro">
+                Ikuti langkah-langkah di bawah ini untuk mengambil cookie Netflix menggunakan ekstensi 
+                <strong> Cookie-Editor</strong> (tersedia untuk Chrome, Firefox, Edge, dan Kiwi Browser di Android).
+              </p>
+
+              <ol className="tutorial-steps">
+                <li>
+                  <strong>Instal Ekstensi Cookie-Editor</strong>
+                  <p>Kunjungi toko ekstensi browser favorit Anda dan cari "Cookie-Editor", lalu instal.</p>
+                  <ul className="tutorial-sublist">
+                    <li>🔹 <a href="https://chrome.google.com/webstore/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm" target="_blank" rel="noopener noreferrer">Chrome Web Store</a></li>
+                    <li>🔹 <a href="https://addons.mozilla.org/en-US/firefox/addon/cookie-editor/" target="_blank" rel="noopener noreferrer">Firefox Add-ons</a></li>
+                    <li>🔹 <a href="https://microsoftedge.microsoft.com/addons/detail/cookieeditor/neaepmjnfjhnoanlcbpggdplloldpegl" target="_blank" rel="noopener noreferrer">Edge Add-ons</a></li>
+                    <li>🔹 Android: Gunakan <strong>Kiwi Browser</strong> dan instal ekstensi dari Chrome Web Store</li>
+                  </ul>
+                </li>
+
+                <li>
+                  <strong>Login ke Netflix</strong>
+                  <p>Buka <a href="https://www.netflix.com" target="_blank" rel="noopener noreferrer">netflix.com</a> dan login ke akun Anda.</p>
+                </li>
+
+                <li>
+                  <strong>Buka Cookie-Editor</strong>
+                  <p>Klik ikon ekstensi Cookie-Editor di toolbar browser. Anda akan melihat daftar semua cookie untuk situs Netflix.</p>
+                </li>
+
+                <li>
+                  <strong>Ekspor Cookie</strong>
+                  <p>Klik tombol <strong>"Export"</strong> (ikon panah ke bawah) dan pilih format:</p>
+                  <ul className="tutorial-sublist">
+                    <li>🔸 <strong>JSON</strong> → untuk digunakan di tab <strong>Converter</strong> (format JSON Array/Object)</li>
+                    <li>🔸 <strong>Netscape</strong> → untuk digunakan di tab <strong>Netscape Converter</strong></li>
+                    <li>🔸 <strong>Header String</strong> → untuk digunakan di tab <strong>Converter</strong> (format Raw String)</li>
+                  </ul>
+                </li>
+
+                <li>
+                  <strong>Salin dan Tempel ke NFTOKEN</strong>
+                  <p>Buka <a href="https://nftoken.zone.id" target="_blank" rel="noopener noreferrer">nftoken.zone.id</a>, pilih tab yang sesuai, lalu tempelkan hasil ekspor.</p>
+                </li>
+              </ol>
+
+              <div className="tutorial-tip">
+                💡 <strong>Tips:</strong> Pastikan Anda masih dalam keadaan <strong>login</strong> saat mengekspor cookie. 
+                Cookie yang sudah kadaluarsa tidak akan berfungsi.
+              </div>
+            </div>
+
+            {/* Cara Pakai NFToken */}
             <div className="info-card">
               <h3>💻 Cara Menggunakan NFToken</h3>
 
@@ -1495,6 +1547,105 @@ export default function Home() {
           border-bottom: none;
         }
 
+        /* ===== TUTORIAL CARD ===== */
+        .tutorial-card {
+          border-color: rgba(59, 130, 246, 0.2);
+          background: rgba(59, 130, 246, 0.05);
+        }
+
+        .tutorial-card h3 {
+          color: #60a5fa;
+        }
+
+        .tutorial-intro {
+          margin-bottom: 12px;
+          color: #b0b8c5;
+        }
+
+        .tutorial-intro strong {
+          color: #eaeef2;
+        }
+
+        .tutorial-steps {
+          list-style: none;
+          padding: 0;
+          counter-reset: step;
+        }
+
+        .tutorial-steps > li {
+          counter-increment: step;
+          padding: 10px 0 10px 40px;
+          position: relative;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .tutorial-steps > li:last-child {
+          border-bottom: none;
+        }
+
+        .tutorial-steps > li::before {
+          content: counter(step);
+          position: absolute;
+          left: 0;
+          top: 10px;
+          width: 28px;
+          height: 28px;
+          background: rgba(59, 130, 246, 0.15);
+          border: 1px solid rgba(59, 130, 246, 0.3);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 13px;
+          font-weight: 700;
+          color: #60a5fa;
+        }
+
+        .tutorial-steps > li strong {
+          display: block;
+          color: #eaeef2;
+          font-size: clamp(13px, 1.4vw, 15px);
+          margin-bottom: 2px;
+        }
+
+        .tutorial-steps > li p {
+          font-size: clamp(12px, 1.2vw, 14px);
+          color: #b0b8c5;
+          margin: 0;
+        }
+
+        .tutorial-steps > li a {
+          color: #60a5fa;
+          text-decoration: none;
+        }
+
+        .tutorial-steps > li a:hover {
+          text-decoration: underline;
+        }
+
+        .tutorial-sublist {
+          list-style: none;
+          padding: 4px 0 0 16px;
+          margin: 0;
+        }
+
+        .tutorial-sublist li {
+          font-size: clamp(12px, 1.2vw, 14px);
+          color: #9ca3af;
+          padding: 2px 0;
+          border-bottom: none !important;
+        }
+
+        .tutorial-tip {
+          margin-top: 12px;
+          padding: 10px 14px;
+          background: rgba(245, 158, 11, 0.08);
+          border-left: 3px solid #f59e0b;
+          border-radius: 8px;
+          font-size: clamp(12px, 1.2vw, 14px);
+          color: #fcd34d;
+        }
+
         .warning-card {
           border-color: rgba(245, 158, 11, 0.2);
           background: rgba(245, 158, 11, 0.05);
@@ -1676,6 +1827,17 @@ export default function Home() {
           header .tagline {
             font-size: 8px;
             padding: 2px 8px;
+          }
+
+          .tutorial-steps > li {
+            padding-left: 32px;
+          }
+
+          .tutorial-steps > li::before {
+            width: 22px;
+            height: 22px;
+            font-size: 11px;
+            top: 12px;
           }
         }
 
