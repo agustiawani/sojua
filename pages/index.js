@@ -1,6 +1,6 @@
 // pages/index.js
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 
 export default function Home() {
@@ -30,6 +30,20 @@ export default function Home() {
   const [tokenLoading, setTokenLoading] = useState(false);
   const [tokenResult, setTokenResult] = useState(null);
 
+  // ===== TOAST NOTIFICATION =====
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const toastTimeoutRef = useRef(null);
+
+  const showToast = (message, type = 'success') => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    setToast({ show: true, message, type });
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast({ show: false, message: '', type: 'success' });
+    }, 3000);
+  };
+
   // ===== LOAD DARI LOCALSTORAGE (Converter) =====
   useEffect(() => {
     const stored = localStorage.getItem('netflix_cookies');
@@ -48,15 +62,15 @@ export default function Home() {
   // ===== FUNGSI SIMPAN COOKIE =====
   const handleSaveCookie = () => {
     if (!newCookieName.trim()) {
-      alert('Berikan nama untuk akun ini');
+      showToast('Berikan nama untuk akun ini', 'error');
       return;
     }
     if (!cookieInput.trim() || !cookieInput.includes('NetflixId=')) {
-      alert('Cookie tidak valid. Pastikan berisi NetflixId.');
+      showToast('Cookie tidak valid. Pastikan berisi NetflixId.', 'error');
       return;
     }
     if (savedCookies.some((c) => c.name.toLowerCase() === newCookieName.trim().toLowerCase())) {
-      alert(`Nama "${newCookieName}" sudah digunakan.`);
+      showToast(`Nama "${newCookieName}" sudah digunakan.`, 'error');
       return;
     }
     const newEntry = {
@@ -66,13 +80,14 @@ export default function Home() {
     };
     updateSavedCookies([...savedCookies, newEntry]);
     setNewCookieName('');
-    alert(`✅ Cookie "${newCookieName}" berhasil disimpan!`);
+    showToast(`✅ Cookie "${newCookieName}" berhasil disimpan!`, 'success');
   };
 
   const handleDeleteCookie = (id) => {
     if (confirm('Hapus cookie ini?')) {
       const newList = savedCookies.filter((c) => c.id !== id);
       updateSavedCookies(newList);
+      showToast('Cookie berhasil dihapus', 'success');
     }
   };
 
@@ -95,7 +110,7 @@ export default function Home() {
   const handleConverterSubmit = async (e) => {
     e.preventDefault();
     if (!cookieInput.trim() || !cookieInput.includes('NetflixId=')) {
-      setError('Cookie tidak valid. Pastikan berisi NetflixId.');
+      showToast('Cookie tidak valid. Pastikan berisi NetflixId.', 'error');
       return;
     }
     setActiveTab('converter');
@@ -106,8 +121,11 @@ export default function Home() {
     setLoading(false);
     if (result.success) {
       setResult(result.data);
+      showToast('✅ Token berhasil di-generate!', 'success');
     } else {
-      setError(result.data?.error || 'Gagal mengonversi cookie');
+      const errMsg = result.data?.error || 'Gagal mengonversi cookie';
+      setError(errMsg);
+      showToast(`❌ ${errMsg}`, 'error');
     }
   };
 
@@ -126,11 +144,16 @@ export default function Home() {
 
       if (res.ok && data.success) {
         setAutoGenResult(data);
+        showToast('✅ 3 link berhasil di-generate!', 'success');
       } else {
-        setAutoGenError(data.error || 'Gagal menghasilkan link.');
+        const errMsg = data.error || 'Gagal menghasilkan link.';
+        setAutoGenError(errMsg);
+        showToast(`❌ ${errMsg}`, 'error');
       }
     } catch (_) {
-      setAutoGenError('Terjadi kesalahan jaringan.');
+      const errMsg = 'Terjadi kesalahan jaringan.';
+      setAutoGenError(errMsg);
+      showToast(`❌ ${errMsg}`, 'error');
     } finally {
       setAutoGenLoading(false);
     }
@@ -151,11 +174,16 @@ export default function Home() {
       const data = await res.json();
       if (res.ok) {
         setRawCookieResult(data.rawCookie);
+        showToast('✅ Raw Cookie berhasil diparse!', 'success');
       } else {
-        setNetscapeError(data.error || 'Gagal parsing Netscape.');
+        const errMsg = data.error || 'Gagal parsing Netscape.';
+        setNetscapeError(errMsg);
+        showToast(`❌ ${errMsg}`, 'error');
       }
     } catch (_) {
-      setNetscapeError('Terjadi kesalahan jaringan.');
+      const errMsg = 'Terjadi kesalahan jaringan.';
+      setNetscapeError(errMsg);
+      showToast(`❌ ${errMsg}`, 'error');
     } finally {
       setNetscapeLoading(false);
     }
@@ -175,20 +203,25 @@ export default function Home() {
       const data = await res.json();
       if (res.ok && data.success) {
         setTokenResult(data);
+        showToast('✅ NFToken berhasil di-generate!', 'success');
       } else {
-        setNetscapeError(data.error || data.message || 'Gagal generate token.');
+        const errMsg = data.error || data.message || 'Gagal generate token.';
+        setNetscapeError(errMsg);
+        showToast(`❌ ${errMsg}`, 'error');
       }
     } catch (_) {
-      setNetscapeError('Gagal generate token.');
+      const errMsg = 'Gagal generate token.';
+      setNetscapeError(errMsg);
+      showToast(`❌ ${errMsg}`, 'error');
     } finally {
       setTokenLoading(false);
     }
   };
 
-  // ===== COPY TO CLIPBOARD =====
+  // ===== COPY TO CLIPBOARD (dengan Toast) =====
   const copyToClipboard = (text, label) => {
     navigator.clipboard.writeText(text);
-    alert(`✅ ${label} disalin ke clipboard!`);
+    showToast(`✅ ${label} disalin ke clipboard!`, 'success');
   };
 
   // ===== RENDER =====
@@ -201,7 +234,18 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <div className="container">
+      {/* ✅ MAIN LANDMARK untuk aksesibilitas */}
+      <main id="main-content" className="container" role="main">
+        {/* TOAST NOTIFICATION */}
+        {toast.show && (
+          <div className={`toast toast-${toast.type}`}>
+            <span className="toast-icon">
+              {toast.type === 'success' ? '✅' : '❌'}
+            </span>
+            <span className="toast-message">{toast.message}</span>
+          </div>
+        )}
+
         {/* HEADER */}
         <header>
           <div className="logo">
@@ -218,6 +262,7 @@ export default function Home() {
             onClick={() => setActiveTab('auto')}
             role="tab"
             aria-selected={activeTab === 'auto'}
+            tabIndex={0}
           >
             <span className="tab-icon">⚡</span>
             <span className="tab-label">Generate</span>
@@ -227,6 +272,7 @@ export default function Home() {
             onClick={() => setActiveTab('converter')}
             role="tab"
             aria-selected={activeTab === 'converter'}
+            tabIndex={0}
           >
             <span className="tab-icon">🔄</span>
             <span className="tab-label">Converter</span>
@@ -236,6 +282,7 @@ export default function Home() {
             onClick={() => setActiveTab('netscape')}
             role="tab"
             aria-selected={activeTab === 'netscape'}
+            tabIndex={0}
           >
             <span className="tab-icon">📄</span>
             <span className="tab-label">Netscape</span>
@@ -245,6 +292,7 @@ export default function Home() {
             onClick={() => setActiveTab('info')}
             role="tab"
             aria-selected={activeTab === 'info'}
+            tabIndex={0}
           >
             <span className="tab-icon">📖</span>
             <span className="tab-label">Info</span>
@@ -267,9 +315,21 @@ export default function Home() {
                 onClick={handleAutoGenerate}
                 disabled={autoGenLoading}
               >
-                {autoGenLoading ? '⏳ Memproses...' : '⚡ Generate'}
+                {autoGenLoading ? (
+                  <>
+                    <span className="spinner"></span>
+                    <span>Memproses...</span>
+                  </>
+                ) : (
+                  '⚡ Generate'
+                )}
               </button>
-              {autoGenError && <div className="error-box">{autoGenError}</div>}
+              {autoGenError && (
+                <div className="error-box">
+                  <span className="error-icon">⚠️</span>
+                  <span className="error-text">{autoGenError}</span>
+                </div>
+              )}
             </div>
 
             {autoGenResult && (
@@ -389,14 +449,22 @@ export default function Home() {
                   </button>
                 </div>
                 <button type="submit" disabled={loading || !cookieInput.trim()} className="btn-forge">
-                  {loading ? '⏳ MEMPROSES...' : '⚡ FORGE TOKEN'}
+                  {loading ? (
+                    <>
+                      <span className="spinner"></span>
+                      <span>MEMPROSES...</span>
+                    </>
+                  ) : (
+                    '⚡ FORGE TOKEN'
+                  )}
                 </button>
               </div>
             </form>
 
             {error && (
               <div className="error-box">
-                <strong>❌ Error:</strong> {error}
+                <span className="error-icon">⚠️</span>
+                <span className="error-text">{error}</span>
               </div>
             )}
 
@@ -496,7 +564,14 @@ export default function Home() {
                   disabled={netscapeLoading}
                   className="btn-parse"
                 >
-                  {netscapeLoading ? '⏳ Parsing...' : '🔧 Parse ke Raw'}
+                  {netscapeLoading ? (
+                    <>
+                      <span className="spinner"></span>
+                      <span>Parsing...</span>
+                    </>
+                  ) : (
+                    '🔧 Parse ke Raw'
+                  )}
                 </button>
                 {rawCookieResult && (
                   <button
@@ -504,7 +579,14 @@ export default function Home() {
                     disabled={tokenLoading}
                     className="btn-generate-raw"
                   >
-                    {tokenLoading ? '⏳ Generating...' : '⚡ Generate NFToken'}
+                    {tokenLoading ? (
+                      <>
+                        <span className="spinner"></span>
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      '⚡ Generate NFToken'
+                    )}
                   </button>
                 )}
               </div>
@@ -526,7 +608,10 @@ export default function Home() {
               )}
 
               {netscapeError && (
-                <div className="error-box">{netscapeError}</div>
+                <div className="error-box">
+                  <span className="error-icon">⚠️</span>
+                  <span className="error-text">{netscapeError}</span>
+                </div>
               )}
 
               {tokenResult && (
@@ -578,7 +663,7 @@ export default function Home() {
         )}
 
         {/* ============================================ */}
-        {/* TAB: INFO (DENGAN TUTORIAL COOKIE-EDITOR) */}
+        {/* TAB: INFO */}
         {/* ============================================ */}
         {activeTab === 'info' && (
           <div className="tab-content info-tab">
@@ -622,7 +707,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 🆕 TUTORIAL COOKIE-EDITOR */}
+            {/* Tutorial Cookie-Editor */}
             <div className="info-card tutorial-card">
               <h3>🍪 Cara Mendapatkan Cookie dengan Cookie-Editor</h3>
               <p className="tutorial-intro">
@@ -736,7 +821,7 @@ export default function Home() {
         <footer>
           <p>© 2026 NFTOKEN</p>
         </footer>
-      </div>
+      </main>
 
       {/* ===== STYLES ===== */}
       <style jsx>{`
@@ -771,6 +856,78 @@ export default function Home() {
           box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
           margin: 0 auto;
           transition: all 0.2s ease;
+        }
+
+        /* ===== TOAST NOTIFICATION ===== */
+        .toast {
+          position: fixed;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 9999;
+          padding: 14px 24px;
+          border-radius: 12px;
+          font-size: clamp(14px, 1.6vw, 16px);
+          font-weight: 500;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background: rgba(18, 18, 30, 0.95);
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+          animation: slideDown 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+          max-width: 90%;
+          width: auto;
+          min-width: 280px;
+          justify-content: center;
+        }
+
+        .toast-success {
+          border-left: 4px solid #10b981;
+        }
+
+        .toast-error {
+          border-left: 4px solid #ef4444;
+        }
+
+        .toast-icon {
+          font-size: 20px;
+          flex-shrink: 0;
+        }
+
+        .toast-message {
+          color: #eaeef2;
+          word-break: break-word;
+        }
+
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
+        }
+
+        @keyframes fadeOut {
+          from {
+            opacity: 1;
+          }
+          to {
+            opacity: 0;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .toast {
+            top: 12px;
+            padding: 12px 16px;
+            min-width: 200px;
+            font-size: 13px;
+          }
         }
 
         /* ===== HEADER ===== */
@@ -810,7 +967,7 @@ export default function Home() {
         .tagline {
           font-size: clamp(9px, 1.2vw, 12px);
           font-weight: 600;
-          color: #6b7280;
+          color: #9ca3af; /* ✅ Perbaikan kontras */
           letter-spacing: 2px;
           text-transform: uppercase;
           background: rgba(255, 255, 255, 0.04);
@@ -838,7 +995,7 @@ export default function Home() {
           border: none;
           border-radius: 11px;
           background: transparent;
-          color: #6b7280;
+          color: #9ca3af; /* ✅ Perbaikan kontras untuk tab tidak aktif */
           font-size: clamp(10px, 1.2vw, 13px);
           font-weight: 600;
           letter-spacing: 0.3px;
@@ -858,6 +1015,17 @@ export default function Home() {
 
         .tab .tab-label {
           display: inline-block;
+        }
+
+        /* ✅ Fokus keyboard yang jelas */
+        .tab:focus-visible,
+        button:focus-visible,
+        a:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible {
+          outline: 2px solid #e50914;
+          outline-offset: 2px;
         }
 
         @media (max-width: 480px) {
@@ -923,6 +1091,25 @@ export default function Home() {
           font-family: monospace;
         }
 
+        /* ===== LOADING SPINNER ===== */
+        .spinner {
+          display: inline-block;
+          width: 20px;
+          height: 20px;
+          border: 2px solid rgba(255, 255, 255, 0.15);
+          border-top-color: #fff;
+          border-radius: 50%;
+          animation: spin 0.7s linear infinite;
+          margin-right: 10px;
+          flex-shrink: 0;
+        }
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
         /* ===== AUTO GENERATE ===== */
         .auto-generate-area {
           display: flex;
@@ -950,6 +1137,10 @@ export default function Home() {
           min-height: 56px;
           touch-action: manipulation;
           text-align: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
         }
 
         .btn-generate-auto:hover:not(:disabled) {
@@ -1121,6 +1312,10 @@ export default function Home() {
           white-space: nowrap;
           min-height: 44px;
           touch-action: manipulation;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
         }
 
         .btn-save:hover:not(:disabled) {
@@ -1149,6 +1344,10 @@ export default function Home() {
           min-height: 52px;
           touch-action: manipulation;
           text-align: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
         }
 
         .btn-forge:hover:not(:disabled) {
@@ -1401,6 +1600,10 @@ export default function Home() {
           touch-action: manipulation;
           flex: 1 1 auto;
           text-align: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
         }
 
         .btn-parse:hover:not(:disabled) {
@@ -1426,6 +1629,10 @@ export default function Home() {
           touch-action: manipulation;
           flex: 1 1 auto;
           text-align: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
         }
 
         .btn-generate-raw:hover:not(:disabled) {
@@ -1471,6 +1678,9 @@ export default function Home() {
           transition: all 0.15s;
           min-height: 36px;
           touch-action: manipulation;
+          display: flex;
+          align-items: center;
+          gap: 4px;
         }
 
         .raw-copy-btn:hover {
@@ -1491,16 +1701,29 @@ export default function Home() {
           font-family: 'SF Mono', 'Fira Code', monospace;
         }
 
-        /* ===== ERROR ===== */
+        /* ===== ERROR BOX (dengan ikon) ===== */
         .error-box {
           padding: clamp(12px, 1.5vw, 18px);
           background: rgba(229, 9, 20, 0.1);
-          border-left: 4px solid #e50914;
+          border-left: 4px solid #ef4444;
           border-radius: 12px;
           color: #f87171;
           font-size: clamp(13px, 1.4vw, 16px);
           word-break: break-word;
           width: 100%;
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+        }
+
+        .error-icon {
+          font-size: 20px;
+          flex-shrink: 0;
+          margin-top: 1px;
+        }
+
+        .error-text {
+          flex: 1;
         }
 
         /* ============================================ */
@@ -1839,12 +2062,40 @@ export default function Home() {
             font-size: 11px;
             top: 12px;
           }
+
+          .toast {
+            min-width: 160px;
+            padding: 10px 14px;
+            font-size: 12px;
+          }
         }
 
         @media (min-width: 769px) {
           .container {
             padding: 36px 32px;
           }
+        }
+
+        /* ===== AKSESIBILITAS: FOKUS KEYBOARD ===== */
+        *:focus-visible {
+          outline: 2px solid #e50914;
+          outline-offset: 2px;
+        }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar {
+          width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.02);
+          border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.2);
         }
       `}</style>
     </>
