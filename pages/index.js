@@ -1,4 +1,5 @@
 // pages/index.js
+// Versi final dengan tutorial path URL di tab Info
 
 import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
@@ -21,6 +22,8 @@ export default function Home() {
   const [autoGenLoading, setAutoGenLoading] = useState(false);
   const [autoGenResult, setAutoGenResult] = useState(null);
   const [autoGenError, setAutoGenError] = useState('');
+  const [screenshotUrl, setScreenshotUrl] = useState('');
+  const [screenshotLoading, setScreenshotLoading] = useState(false);
 
   // ===== STATE UNTUK NETSCAPE CONVERTER =====
   const [netscapeInput, setNetscapeInput] = useState('');
@@ -129,11 +132,13 @@ export default function Home() {
     }
   };
 
-  // ===== AUTO GENERATE (3 Link Sekaligus) =====
+  // ===== AUTO GENERATE (3 Link Sekaligus + Screenshot) =====
   const handleAutoGenerate = async () => {
     setAutoGenLoading(true);
     setAutoGenError('');
     setAutoGenResult(null);
+    setScreenshotUrl('');
+    setScreenshotLoading(false);
 
     try {
       const res = await fetch('/api/auto-generate', {
@@ -145,6 +150,21 @@ export default function Home() {
       if (res.ok && data.success) {
         setAutoGenResult(data);
         showToast('✅ 3 link berhasil di-generate!', 'success');
+
+        // Ambil screenshot dari link PC
+        if (data.links && data.links.pc) {
+          setScreenshotLoading(true);
+          try {
+            const encodedUrl = encodeURIComponent(data.links.pc);
+            const ssUrl = `https://api.siputzx.my.id/api/tools/ssweb?url=${encodedUrl}&device=desktop&theme=dark&fullPage=true`;
+            setScreenshotUrl(ssUrl);
+          } catch (err) {
+            console.error('Gagal generate screenshot:', err);
+            showToast('⚠️ Gagal memuat screenshot', 'error');
+          } finally {
+            setScreenshotLoading(false);
+          }
+        }
       } else {
         const errMsg = data.error || 'Gagal menghasilkan link.';
         setAutoGenError(errMsg);
@@ -234,7 +254,7 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      {/* ✅ MAIN LANDMARK untuk aksesibilitas */}
+      {/* MAIN LANDMARK untuk aksesibilitas */}
       <main id="main-content" className="container" role="main">
         {/* TOAST NOTIFICATION */}
         {toast.show && (
@@ -300,7 +320,7 @@ export default function Home() {
         </div>
 
         {/* ============================================ */}
-        {/* TAB: AUTO GENERATE (3 Link) */}
+        {/* TAB: AUTO GENERATE (3 Link + Screenshot) */}
         {/* ============================================ */}
         {activeTab === 'auto' && (
           <div className="tab-content">
@@ -386,6 +406,43 @@ export default function Home() {
                       📋 Salin
                     </button>
                   </div>
+                </div>
+
+                {/* ===== SCREENSHOT PREVIEW ===== */}
+                <div className="screenshot-section">
+                  <div className="result-divider"></div>
+                  <div className="screenshot-header">
+                    <span className="screenshot-label">📸 Preview Akun</span>
+                  </div>
+
+                  {screenshotLoading ? (
+                    <div className="screenshot-loading">
+                      <span className="spinner"></span>
+                      <span>Memuat screenshot...</span>
+                    </div>
+                  ) : screenshotUrl ? (
+                    <div className="screenshot-container">
+                      <img
+                        src={screenshotUrl}
+                        alt="Netflix Account Preview"
+                        className="screenshot-img"
+                        onError={() => {
+                          setScreenshotUrl('');
+                          showToast('⚠️ Gagal memuat screenshot', 'error');
+                        }}
+                      />
+                      <a
+                        href={screenshotUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="screenshot-link"
+                      >
+                        🔍 Buka gambar baru
+                      </a>
+                    </div>
+                  ) : (
+                    <p className="screenshot-empty">Tidak ada preview tersedia</p>
+                  )}
                 </div>
               </div>
             )}
@@ -663,7 +720,7 @@ export default function Home() {
         )}
 
         {/* ============================================ */}
-        {/* TAB: INFO */}
+        {/* TAB: INFO (DENGAN TUTORIAL PATH URL) */}
         {/* ============================================ */}
         {activeTab === 'info' && (
           <div className="tab-content info-tab">
@@ -756,6 +813,68 @@ export default function Home() {
               <div className="tutorial-tip">
                 💡 <strong>Tips:</strong> Pastikan Anda masih dalam keadaan <strong>login</strong> saat mengekspor cookie. 
                 Cookie yang sudah kadaluarsa tidak akan berfungsi.
+              </div>
+            </div>
+
+            {/* ============================================ */}
+            {/* 🆕 TUTORIAL PATH URL UNTUK SETIAP PERANGKAT */}
+            {/* ============================================ */}
+            <div className="info-card path-tutorial-card">
+              <h3>📱 Path URL untuk Setiap Perangkat</h3>
+              <p className="tutorial-intro">
+                <strong>NFToken</strong> yang dihasilkan bersifat universal — satu token bisa digunakan di semua perangkat.
+                Yang membedakan hanyalah <strong>path (jalur)</strong> pada URL-nya. Cukup ganti path sesuai perangkat yang Anda gunakan!
+              </p>
+
+              <div className="path-table">
+                <div className="path-row">
+                  <div className="path-device">💻 PC / Browser</div>
+                  <div className="path-url">
+                    <code>https://netflix.com/<strong>?nftoken=</strong>TOKEN_ANDA</code>
+                  </div>
+                  <div className="path-note">Default / root</div>
+                </div>
+
+                <div className="path-row">
+                  <div className="path-device">📱 Android</div>
+                  <div className="path-url">
+                    <code>https://netflix.com/<strong>unsupported?nftoken=</strong>TOKEN_ANDA</code>
+                  </div>
+                  <div className="path-note">Untuk aplikasi Android</div>
+                </div>
+
+                <div className="path-row">
+                  <div className="path-device">📺 TV (6 digit)</div>
+                  <div className="path-url">
+                    <code>https://netflix.com/<strong>tv2?nftoken=</strong>TOKEN_ANDA</code>
+                  </div>
+                  <div className="path-note">Untuk Smart TV modern</div>
+                </div>
+
+                <div className="path-row">
+                  <div className="path-device">📺 TV (8 digit)</div>
+                  <div className="path-url">
+                    <code>https://netflix.com/<strong>tv8?nftoken=</strong>TOKEN_ANDA</code>
+                  </div>
+                  <div className="path-note">Untuk beberapa TV lama / game console</div>
+                </div>
+              </div>
+
+              <div className="path-example">
+                <p><strong>💡 Contoh:</strong></p>
+                <p>
+                  Jika Anda memiliki token <code>BgiQvuvcAxLCAdtE...</code>, maka:
+                </p>
+                <ul>
+                  <li>🔹 PC → <code>https://netflix.com/?nftoken=BgiQvuvcAxLCAdtE...</code></li>
+                  <li>🔹 Android → <code>https://netflix.com/unsupported?nftoken=BgiQvuvcAxLCAdtE...</code></li>
+                  <li>🔹 TV → <code>https://netflix.com/tv2?nftoken=BgiQvuvcAxLCAdtE...</code></li>
+                </ul>
+              </div>
+
+              <div className="tutorial-tip path-tip">
+                💡 <strong>Tips:</strong> Token yang sama <strong>berlaku untuk semua path</strong>. 
+                Jadi Anda bisa menggunakan satu NFToken untuk login di PC, Android, dan TV tanpa perlu generate ulang!
               </div>
             </div>
 
@@ -962,7 +1081,7 @@ export default function Home() {
         .tagline {
           font-size: clamp(9px, 1.2vw, 12px);
           font-weight: 600;
-          color: #9ca3af; /* ✅ Perbaikan kontras */
+          color: #9ca3af;
           letter-spacing: 2px;
           text-transform: uppercase;
           background: rgba(255, 255, 255, 0.04);
@@ -990,7 +1109,7 @@ export default function Home() {
           border: none;
           border-radius: 11px;
           background: transparent;
-          color: #9ca3af; /* ✅ Perbaikan kontras untuk tab tidak aktif */
+          color: #9ca3af;
           font-size: clamp(10px, 1.2vw, 13px);
           font-weight: 600;
           letter-spacing: 0.3px;
@@ -1012,13 +1131,7 @@ export default function Home() {
           display: inline-block;
         }
 
-        /* ✅ Fokus keyboard yang jelas */
-        .tab:focus-visible,
-        button:focus-visible,
-        a:focus-visible,
-        input:focus-visible,
-        select:focus-visible,
-        textarea:focus-visible {
+        .tab:focus-visible {
           outline: 2px solid #e50914;
           outline-offset: 2px;
         }
@@ -1225,6 +1338,79 @@ export default function Home() {
           font-size: clamp(12px, 1.4vw, 15px);
           color: #6b7280;
           padding: 4px 0 8px 0;
+        }
+
+        /* ===== SCREENSHOT SECTION ===== */
+        .screenshot-section {
+          margin-top: 8px;
+        }
+
+        .screenshot-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 10px;
+        }
+
+        .screenshot-label {
+          font-size: clamp(13px, 1.6vw, 15px);
+          font-weight: 600;
+          color: #9ca3af;
+        }
+
+        .screenshot-loading {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 16px;
+          color: #6b7280;
+          font-size: 14px;
+        }
+
+        .screenshot-container {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          align-items: center;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 12px;
+          padding: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .screenshot-img {
+          width: 100%;
+          max-height: 500px;
+          object-fit: contain;
+          border-radius: 8px;
+          background: #0a0a0f;
+        }
+
+        .screenshot-link {
+          font-size: 13px;
+          color: #60a5fa;
+          text-decoration: none;
+          padding: 6px 14px;
+          border-radius: 6px;
+          background: rgba(96, 165, 250, 0.08);
+          transition: all 0.2s;
+        }
+
+        .screenshot-link:hover {
+          background: rgba(96, 165, 250, 0.16);
+          text-decoration: underline;
+        }
+
+        .screenshot-empty {
+          color: #6b7280;
+          font-size: 13px;
+          padding: 12px 0;
+        }
+
+        @media (max-width: 480px) {
+          .screenshot-img {
+            max-height: 300px;
+          }
         }
 
         /* ===== CONVERTER ===== */
@@ -1696,7 +1882,7 @@ export default function Home() {
           font-family: 'SF Mono', 'Fira Code', monospace;
         }
 
-        /* ===== ERROR BOX (dengan ikon) ===== */
+        /* ===== ERROR BOX ===== */
         .error-box {
           padding: clamp(12px, 1.5vw, 18px);
           background: rgba(229, 9, 20, 0.1);
@@ -1862,6 +2048,115 @@ export default function Home() {
           border-radius: 8px;
           font-size: clamp(12px, 1.2vw, 14px);
           color: #fcd34d;
+        }
+
+        /* ===== PATH TUTORIAL CARD ===== */
+        .path-tutorial-card {
+          border-color: rgba(16, 185, 129, 0.2);
+          background: rgba(16, 185, 129, 0.05);
+        }
+
+        .path-tutorial-card h3 {
+          color: #34d399;
+        }
+
+        .path-table {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          margin: 12px 0;
+        }
+
+        .path-row {
+          display: grid;
+          grid-template-columns: 1fr 2fr 1fr;
+          gap: 8px;
+          align-items: center;
+          padding: 10px 12px;
+          background: rgba(255, 255, 255, 0.03);
+          border-radius: 10px;
+          border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .path-device {
+          font-size: clamp(12px, 1.4vw, 14px);
+          font-weight: 600;
+          color: #eaeef2;
+        }
+
+        .path-url code {
+          font-size: clamp(10px, 1.2vw, 12px);
+          background: rgba(0, 0, 0, 0.3);
+          padding: 4px 8px;
+          border-radius: 6px;
+          color: #fcd34d;
+          word-break: break-all;
+        }
+
+        .path-url code strong {
+          color: #60a5fa;
+        }
+
+        .path-note {
+          font-size: clamp(10px, 1.2vw, 12px);
+          color: #6b7280;
+          text-align: right;
+        }
+
+        .path-example {
+          margin-top: 12px;
+          padding: 12px 16px;
+          background: rgba(255, 255, 255, 0.03);
+          border-radius: 10px;
+          border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .path-example p {
+          font-size: clamp(12px, 1.4vw, 14px);
+          color: #b0b8c5;
+          margin: 4px 0;
+        }
+
+        .path-example code {
+          font-size: clamp(11px, 1.2vw, 13px);
+          background: rgba(0, 0, 0, 0.3);
+          padding: 2px 6px;
+          border-radius: 4px;
+          color: #fcd34d;
+          word-break: break-all;
+        }
+
+        .path-example ul {
+          list-style: none;
+          padding: 4px 0 0 8px;
+        }
+
+        .path-example ul li {
+          font-size: clamp(12px, 1.4vw, 14px);
+          color: #b0b8c5;
+          padding: 3px 0;
+          font-family: monospace;
+          word-break: break-all;
+        }
+
+        .path-tip {
+          border-left-color: #34d399 !important;
+          background: rgba(16, 185, 129, 0.06) !important;
+          color: #6ee7b7 !important;
+        }
+
+        @media (max-width: 600px) {
+          .path-row {
+            grid-template-columns: 1fr;
+            gap: 4px;
+            text-align: center;
+          }
+          .path-note {
+            text-align: center;
+          }
+          .path-url code {
+            font-size: 10px;
+          }
         }
 
         .warning-card {
@@ -2062,6 +2357,10 @@ export default function Home() {
             min-width: 160px;
             padding: 10px 14px;
             font-size: 12px;
+          }
+
+          .screenshot-img {
+            max-height: 300px;
           }
         }
 
