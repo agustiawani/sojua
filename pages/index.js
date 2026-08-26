@@ -807,13 +807,8 @@ export default function Home() {
                 <li>🔒 Jangan bagikan tautan NFToken ke orang lain — siapa pun yang memegang tautan bisa mengakses akun Anda.</li>
                 <li>📱 Gunakan tautan sesuai perangkat agar pengalaman optimal.</li>
                 <li>🔄 Jika tautan tidak berfungsi, generate ulang untuk mendapatkan tautan baru.</li>
+                <li>📍 Gunakan tool dengan bijak, jangan disalahgunakan apalagi diperjualbelikan.</li>
               </ul>
-            </div>
-
-            {/* Footer Info */}
-            <div className="info-footer">
-              <p>Dibuat dengan ❤️</p>
-              <p>© 2026 NFTOKEN</p>
             </div>
           </div>
         )}
