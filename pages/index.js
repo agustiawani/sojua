@@ -1,5 +1,4 @@
 // pages/index.js
-// Versi final dengan tutorial path URL + Kontak & Sumber Daya di tab Info
 
 import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
@@ -45,6 +44,25 @@ export default function Home() {
     toastTimeoutRef.current = setTimeout(() => {
       setToast({ show: false, message: '', type: 'success' });
     }, 3000);
+  };
+
+  // ===== STATE UNTUK POPUP =====
+  const [showPopup, setShowPopup] = useState(false);
+
+  // ===== CEK APAKAH POPUP PERNAH DITAMPILKAN =====
+  useEffect(() => {
+    const hasSeenPopup = localStorage.getItem('nftoken_popup_seen');
+    if (!hasSeenPopup) {
+      setTimeout(() => {
+        setShowPopup(true);
+      }, 1000);
+    }
+  }, []);
+
+  // ===== TUTUP POPUP & SIMPAN STATUS =====
+  const closePopup = () => {
+    setShowPopup(false);
+    localStorage.setItem('nftoken_popup_seen', 'true');
   };
 
   // ===== LOAD DARI LOCALSTORAGE (Converter) =====
@@ -989,6 +1007,43 @@ export default function Home() {
         <footer>
           <p>© 2026 NFTOKEN</p>
         </footer>
+
+        {/* ============================================ */}
+        {/* ===== POPUP SELAMAT DATANG ===== */}
+        {/* ============================================ */}
+        {showPopup && (
+          <div className="popup-overlay" onClick={closePopup}>
+            <div className="popup-modal" onClick={(e) => e.stopPropagation()}>
+              <button className="popup-close" onClick={closePopup}>✕</button>
+              <div className="popup-icon">🎬</div>
+              <h2 className="popup-title">Selamat Datang di NFTOKEN!</h2>
+              <p className="popup-desc">
+                Dapatkan <strong>cookie premium</strong> dan <strong>akun Netflix gratis</strong> 
+                setiap hari melalui channel resmi kami!
+              </p>
+              <div className="popup-benefits">
+                <span>✅ Cookie Premium Harian</span>
+                <span>✅ Update Tools Terbaru</span>
+                <span>✅ Gratis & Tanpa Batas</span>
+              </div>
+              <a
+                href="https://whatsapp.com/channel/0029VbDTbWUD8SE7nkyNsd33"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="popup-btn"
+                onClick={closePopup}
+              >
+                💬 Gabung ke Channel WhatsApp
+              </a>
+              <button className="popup-later" onClick={closePopup}>
+                Nanti Saja
+              </button>
+              <p className="popup-footnote">
+                ✨ <em>Semua gratis, dari rakyat untuk rakyat!</em>
+              </p>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* ===== STYLES ===== */}
@@ -2399,6 +2454,185 @@ export default function Home() {
           font-size: clamp(11px, 1.2vw, 14px);
           color: #4b5563;
           letter-spacing: 1px;
+        }
+
+        /* ============================================ */
+        /* ===== POPUP SELAMAT DATANG ===== */
+        /* ============================================ */
+        .popup-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.8);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          z-index: 10000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          animation: popupFadeIn 0.4s ease;
+        }
+
+        @keyframes popupFadeIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        .popup-modal {
+          background: linear-gradient(145deg, rgba(26, 26, 46, 0.98), rgba(18, 18, 30, 0.98));
+          backdrop-filter: blur(16px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 24px;
+          padding: 32px 28px;
+          max-width: 440px;
+          width: 100%;
+          position: relative;
+          text-align: center;
+          box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+          animation: popupSlideUp 0.4s ease;
+        }
+
+        @keyframes popupSlideUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .popup-close {
+          position: absolute;
+          top: 12px;
+          right: 16px;
+          background: transparent;
+          border: none;
+          color: #6b7280;
+          font-size: 22px;
+          cursor: pointer;
+          transition: all 0.2s;
+          padding: 4px 8px;
+          border-radius: 8px;
+          touch-action: manipulation;
+        }
+
+        .popup-close:hover {
+          color: #eaeef2;
+          background: rgba(255, 255, 255, 0.06);
+        }
+
+        .popup-icon {
+          font-size: 48px;
+          margin-bottom: 8px;
+        }
+
+        .popup-title {
+          font-size: clamp(22px, 4vw, 28px);
+          font-weight: 700;
+          color: #eaeef2;
+          margin-bottom: 8px;
+          background: linear-gradient(135deg, #e50914, #f5a623);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+
+        .popup-desc {
+          font-size: clamp(14px, 1.6vw, 16px);
+          color: #b0b8c5;
+          line-height: 1.7;
+          margin-bottom: 16px;
+        }
+
+        .popup-desc strong {
+          color: #fcd34d;
+          font-weight: 600;
+        }
+
+        .popup-benefits {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-bottom: 20px;
+          text-align: left;
+          padding: 12px 16px;
+          background: rgba(255, 255, 255, 0.03);
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .popup-benefits span {
+          font-size: clamp(13px, 1.4vw, 15px);
+          color: #9ca3af;
+          padding: 4px 0;
+        }
+
+        .popup-btn {
+          display: inline-block;
+          width: 100%;
+          padding: 14px 20px;
+          background: linear-gradient(135deg, #25D366, #128C7E);
+          color: #fff;
+          font-size: clamp(15px, 1.6vw, 17px);
+          font-weight: 700;
+          text-decoration: none;
+          border-radius: 14px;
+          transition: all 0.25s ease;
+          box-shadow: 0 6px 24px rgba(37, 211, 102, 0.25);
+          touch-action: manipulation;
+        }
+
+        .popup-btn:hover {
+          transform: scale(1.02);
+          box-shadow: 0 8px 32px rgba(37, 211, 102, 0.4);
+        }
+
+        .popup-later {
+          display: block;
+          width: 100%;
+          margin-top: 10px;
+          padding: 10px;
+          background: transparent;
+          border: none;
+          color: #6b7280;
+          font-size: clamp(13px, 1.4vw, 14px);
+          cursor: pointer;
+          transition: color 0.2s;
+          touch-action: manipulation;
+        }
+
+        .popup-later:hover {
+          color: #9ca3af;
+        }
+
+        .popup-footnote {
+          margin-top: 12px;
+          font-size: clamp(12px, 1.2vw, 13px);
+          color: #f59e0b;
+        }
+
+        @media (max-width: 480px) {
+          .popup-modal {
+            padding: 24px 18px;
+            border-radius: 20px;
+          }
+          .popup-icon {
+            font-size: 36px;
+          }
+          .popup-benefits {
+            padding: 10px 12px;
+          }
         }
 
         /* ===== RESPONSIVE ===== */
