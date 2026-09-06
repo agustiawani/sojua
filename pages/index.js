@@ -1,5 +1,5 @@
 // pages/index.js
-// Versi final dengan tutorial path URL di tab Info
+// Versi final dengan tutorial path URL + Kontak & Sumber Daya di tab Info
 
 import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
@@ -720,7 +720,7 @@ export default function Home() {
         )}
 
         {/* ============================================ */}
-        {/* TAB: INFO (DENGAN TUTORIAL PATH URL) */}
+        {/* TAB: INFO (DENGAN TUTORIAL PATH URL + KONTAK) */}
         {/* ============================================ */}
         {activeTab === 'info' && (
           <div className="tab-content info-tab">
@@ -878,6 +878,53 @@ export default function Home() {
               </div>
             </div>
 
+            {/* ============================================ */}
+            {/* 🆕 KONTAK & SUMBER DAYA */}
+            {/* ============================================ */}
+            <div className="info-card contact-card">
+              <h3>📱 Kontak & Sumber Daya</h3>
+              <p className="tutorial-intro">
+                Dapatkan cookie premium, update terbaru, dan tutorial video melalui channel resmi di bawah ini.
+                <br />
+                <span className="contact-motto">✨ <em>Semua gratis, dari rakyat untuk rakyat — jangan diperjualbelikan!</em></span>
+              </p>
+
+              <div className="contact-grid">
+                <div className="contact-item">
+                  <span className="contact-icon">💬</span>
+                  <div>
+                    <strong>WhatsApp Channel</strong>
+                    <p>Dapatkan cookie & update terbaru</p>
+                    <a href="https://whatsapp.com/channel/0029VbDTbWUD8SE7nkyNsd33" target="_blank" rel="noopener noreferrer">
+                      https://whatsapp.com/channel/0029VbDTbWUD8SE7nkyNsd33
+                    </a>
+                  </div>
+                </div>
+
+                <div className="contact-item">
+                  <span className="contact-icon">🎥</span>
+                  <div>
+                    <strong>YouTube Channel</strong>
+                    <p>Video tutorial NFTOKEN & cara pakai</p>
+                    <a href="https://youtube.com/@cookiepremium-free" target="_blank" rel="noopener noreferrer">
+                      https://youtube.com/@cookiepremium-free
+                    </a>
+                  </div>
+                </div>
+
+                <div className="contact-item">
+                  <span className="contact-icon">🍪</span>
+                  <div>
+                    <strong>Download Cookie Netflix</strong>
+                    <p>Dapatkan cookie premium gratis siap pakai</p>
+                    <a href="https://whatsapp.com/channel/0029VbDTbWUD8SE7nkyNsd33/293" target="_blank" rel="noopener noreferrer">
+                      https://whatsapp.com/channel/0029VbDTbWUD8SE7nkyNsd33/293
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Cara Pakai NFToken */}
             <div className="info-card">
               <h3>💻 Cara Menggunakan NFToken</h3>
@@ -927,7 +974,14 @@ export default function Home() {
                 <li>📱 Gunakan tautan sesuai perangkat agar pengalaman optimal.</li>
                 <li>🔄 Jika tautan tidak berfungsi, generate ulang untuk mendapatkan tautan baru.</li>
                 <li>📍 Gunakan tool dengan bijak, jangan disalahgunakan apalagi diperjualbelikan.</li>
+                <li>🤝 <strong>Semua gratis — dari rakyat untuk rakyat!</strong></li>
               </ul>
+            </div>
+
+            {/* Footer Info */}
+            <div className="info-footer">
+              <p>Dibuat dengan ❤️</p>
+              <p>© 2026 NFTOKEN</p>
             </div>
           </div>
         )}
@@ -2159,6 +2213,75 @@ export default function Home() {
           }
         }
 
+        /* ===== CONTACT CARD ===== */
+        .contact-card {
+          border-color: rgba(245, 158, 11, 0.2);
+          background: rgba(245, 158, 11, 0.05);
+        }
+
+        .contact-card h3 {
+          color: #f59e0b;
+        }
+
+        .contact-motto {
+          display: block;
+          margin-top: 6px;
+          font-size: clamp(13px, 1.4vw, 15px);
+          color: #fcd34d;
+        }
+
+        .contact-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          margin-top: 12px;
+        }
+
+        .contact-item {
+          display: flex;
+          gap: 12px;
+          align-items: flex-start;
+          padding: 10px 12px;
+          background: rgba(255, 255, 255, 0.03);
+          border-radius: 10px;
+          border: 1px solid rgba(255, 255, 255, 0.04);
+          transition: all 0.2s;
+        }
+
+        .contact-item:hover {
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(245, 158, 11, 0.2);
+        }
+
+        .contact-icon {
+          font-size: clamp(22px, 3vw, 28px);
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+
+        .contact-item strong {
+          display: block;
+          font-size: clamp(13px, 1.4vw, 15px);
+          color: #eaeef2;
+        }
+
+        .contact-item p {
+          font-size: clamp(12px, 1.2vw, 14px);
+          color: #b0b8c5;
+          margin: 2px 0 4px 0;
+        }
+
+        .contact-item a {
+          font-size: clamp(11px, 1.2vw, 13px);
+          color: #60a5fa;
+          text-decoration: none;
+          word-break: break-all;
+        }
+
+        .contact-item a:hover {
+          text-decoration: underline;
+        }
+
         .warning-card {
           border-color: rgba(245, 158, 11, 0.2);
           background: rgba(245, 158, 11, 0.05);
@@ -2361,6 +2484,12 @@ export default function Home() {
 
           .screenshot-img {
             max-height: 300px;
+          }
+
+          .contact-item {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
           }
         }
 
